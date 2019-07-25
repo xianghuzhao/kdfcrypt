@@ -1,2 +1,3 @@
-# hashit
-Hash with different methods
+# Key derivation for password crypt
+
+Key derivation with different methods
