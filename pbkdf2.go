@@ -1,4 +1,4 @@
-package derivation
+package kdfcrypt
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 
 // PBKDF2 parameters
 type PBKDF2 struct {
-	deriverCommon
+	kdfCommon
 	KeyLength int
 	Iteration int
 	HashFunc  string
@@ -47,8 +47,8 @@ func (d *PBKDF2) ParseParam(param string) error {
 	return nil
 }
 
-// Derive with PBKDF2
-func (d *PBKDF2) Derive(key []byte) ([]byte, error) {
+// KDF with PBKDF2
+func (d *PBKDF2) KDF(key []byte) ([]byte, error) {
 	hashFunc, ok := hashFuncMap[d.HashFunc]
 	if !ok {
 		return nil, fmt.Errorf("Hash func not valid: %s", d.HashFunc)
@@ -65,5 +65,5 @@ func (d *PBKDF2) Derive(key []byte) ([]byte, error) {
 // Verify compare password with hash
 func (d *PBKDF2) Verify(key, hashed []byte) (bool, error) {
 	d.KeyLength = len(hashed)
-	return verifyByDerive(key, hashed, d)
+	return verifyByKDF(key, hashed, d)
 }

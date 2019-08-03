@@ -1,4 +1,4 @@
-package derivation
+package kdfcrypt
 
 import (
 	"crypto/md5"
@@ -24,30 +24,29 @@ var hashFuncMap = map[string]hashFunc{
 	"sha512/256": sha512.New512_256,
 }
 
-// Deriver for interfaces which could get hashed key
-type deriver interface {
+type kdf interface {
 	GetSalt() []byte
 	SetSalt(salt []byte)
 
 	GenerateParam() (string, error)
 	ParseParam(param string) error
 
-	Derive(key []byte) ([]byte, error)
+	KDF(key []byte) ([]byte, error)
 	Verify(key, hashed []byte) (bool, error)
 }
 
-var derivers = []deriver{
+var kdfs = []kdf{
 	(*PBKDF2)(nil),
 	(*Bcrypt)(nil),
 }
 
-var mapDeriver map[string]reflect.Type
+var mapKDF map[string]reflect.Type
 
 func init() {
-	mapDeriver = make(map[string]reflect.Type)
-	for _, method := range derivers {
+	mapKDF = make(map[string]reflect.Type)
+	for _, method := range kdfs {
 		methodName := strings.ToLower(reflect.TypeOf(method).Elem().Name())
-		mapDeriver[methodName] = reflect.TypeOf(method)
+		mapKDF[methodName] = reflect.TypeOf(method)
 	}
 }
 
@@ -84,27 +83,27 @@ func parseCryptedString(crypted string) (string, string, string, string) {
 	return method, param, salt, value
 }
 
-// ListAvailableDeriveMethods list all the available derive methods
-func ListAvailableDeriveMethods() []string {
-	keys := make([]string, 0, len(mapDeriver))
-	for method := range mapDeriver {
+// ListAvailableKDFMethods list all the available kdf methods
+func ListAvailableKDFMethods() []string {
+	keys := make([]string, 0, len(mapKDF))
+	for method := range mapKDF {
 		keys = append(keys, method)
 	}
 	return keys
 }
 
 // Generate crypted key derivation
-func Generate(key string, d deriver) (string, error) {
+func Generate(key string, d kdf) (string, error) {
 	method := strings.ToLower(reflect.TypeOf(d).Elem().Name())
 
-	keyDerived, err := d.Derive([]byte(key))
+	keyDerived, err := d.KDF([]byte(key))
 	if err != nil {
 		return "", err
 	}
 
 	value := base64.RawStdEncoding.EncodeToString(keyDerived)
 
-	// Do this after d.Derive because salt may be generated there
+	// Do this after d.KDF because salt may be generated there
 	salt := base64.RawStdEncoding.EncodeToString(d.GetSalt())
 
 	param, err := d.GenerateParam()
@@ -121,12 +120,12 @@ func Generate(key string, d deriver) (string, error) {
 func Verify(key, crypted string) (bool, error) {
 	method, param, salt, value := parseCryptedString(crypted)
 
-	typeDeriver, ok := mapDeriver[method]
+	typeKDF, ok := mapKDF[method]
 	if !ok {
 		return false, fmt.Errorf("Method not available: '%s'", method)
 	}
 
-	d := reflect.New(typeDeriver.Elem()).Interface().(deriver)
+	d := reflect.New(typeKDF.Elem()).Interface().(kdf)
 
 	saltOrigin, err := base64.RawStdEncoding.DecodeString(salt)
 	if err != nil {

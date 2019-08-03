@@ -1,4 +1,4 @@
-package derivation
+package kdfcrypt
 
 import (
 	"testing"
@@ -13,7 +13,7 @@ func TestPBKDF2Derive(t *testing.T) {
 
 	key := "password"
 
-	hashed, err := d.Derive([]byte(key))
+	hashed, err := d.KDF([]byte(key))
 	if err != nil {
 		t.Fatalf("Fatal error when derive: %s", err)
 	}

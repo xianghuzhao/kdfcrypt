@@ -1,4 +1,4 @@
-module github.com/xianghuzhao/derivation
+module github.com/xianghuzhao/kdfcrypt
 
 go 1.12
 

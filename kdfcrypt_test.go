@@ -1,6 +1,7 @@
-package derivation
+package kdfcrypt
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -78,7 +79,7 @@ func TestGenerateAndVerify(t *testing.T) {
 	d := PBKDF2{
 		KeyLength: 32,
 		Iteration: 4096,
-		HashFunc:  "md5",
+		HashFunc:  "sha512/256",
 	}
 
 	key := "password"
@@ -87,6 +88,8 @@ func TestGenerateAndVerify(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Generate error: %s", err)
 	}
+
+	fmt.Println(crypted)
 
 	match, err := Verify(key, crypted)
 	if err != nil {

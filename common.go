@@ -1,24 +1,24 @@
-package derivation
+package kdfcrypt
 
 import (
 	"crypto/rand"
 	"crypto/subtle"
 )
 
-type deriverCommon struct {
+type kdfCommon struct {
 	Salt              []byte
 	DefaultSaltLength uint32
 }
 
-func (d *deriverCommon) GetSalt() []byte {
+func (d *kdfCommon) GetSalt() []byte {
 	return d.Salt
 }
 
-func (d *deriverCommon) SetSalt(salt []byte) {
+func (d *kdfCommon) SetSalt(salt []byte) {
 	d.Salt = salt
 }
 
-func (d *deriverCommon) generateRandomSalt() {
+func (d *kdfCommon) generateRandomSalt() {
 	if d.DefaultSaltLength == 0 {
 		d.DefaultSaltLength = 16
 	}
@@ -38,8 +38,8 @@ func generateRandomBytes(n uint32) ([]byte, error) {
 	return b, nil
 }
 
-func verifyByDerive(key, hashed []byte, d deriver) (bool, error) {
-	keyDerived, err := d.Derive([]byte(key))
+func verifyByKDF(key, hashed []byte, d kdf) (bool, error) {
+	keyDerived, err := d.KDF([]byte(key))
 	if err != nil {
 		return false, err
 	}

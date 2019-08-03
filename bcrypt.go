@@ -1,4 +1,4 @@
-package derivation
+package kdfcrypt
 
 import (
 	"encoding/base64"
@@ -91,8 +91,8 @@ func (d *Bcrypt) ParseParam(param string) error {
 	return nil
 }
 
-// Derive with bcrypt
-func (d *Bcrypt) Derive(value []byte) ([]byte, error) {
+// KDF get the kdf with bcrypt
+func (d *Bcrypt) KDF(value []byte) ([]byte, error) {
 	if d.Salt != nil {
 		return nil, errors.New("Bcrypt does not support user defined salt")
 	}

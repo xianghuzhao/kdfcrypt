@@ -1,4 +1,4 @@
-package derivation
+package kdfcrypt
 
 import (
 	"testing"
@@ -6,12 +6,12 @@ import (
 
 func TestBcryptDerive(t *testing.T) {
 	b := Bcrypt{
-		Cost: 12,
+		Cost: 10,
 	}
 
 	key := "password"
 
-	hashed, err := b.Derive([]byte(key))
+	hashed, err := b.KDF([]byte(key))
 	if err != nil {
 		t.Fatalf("Fatal error when derive: %s", err)
 	}
