@@ -1,9 +1,26 @@
 package kdfcrypt
 
 import (
+	"crypto/md5"
 	"crypto/rand"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/subtle"
+	"hash"
 )
+
+type hashFunc func() hash.Hash
+
+var hashFuncMap = map[string]hashFunc{
+	"md5":        md5.New,
+	"sha1":       sha1.New,
+	"sha256":     sha256.New,
+	"sha512":     sha512.New,
+	"sha384":     sha512.New384,
+	"sha512/224": sha512.New512_224,
+	"sha512/256": sha512.New512_256,
+}
 
 type kdfCommon struct {
 	Salt              []byte
@@ -38,7 +55,7 @@ func generateRandomBytes(n uint32) ([]byte, error) {
 	return b, nil
 }
 
-func verifyByKDF(key, hashed []byte, d kdf) (bool, error) {
+func verifyByKDF(key, hashed []byte, d KDF) (bool, error) {
 	keyDerived, err := d.KDF([]byte(key))
 	if err != nil {
 		return false, err

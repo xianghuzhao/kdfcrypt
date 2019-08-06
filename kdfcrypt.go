@@ -1,30 +1,14 @@
 package kdfcrypt
 
 import (
-	"crypto/md5"
-	"crypto/sha1"
-	"crypto/sha256"
-	"crypto/sha512"
 	"encoding/base64"
 	"fmt"
-	"hash"
 	"reflect"
 	"strings"
 )
 
-type hashFunc func() hash.Hash
-
-var hashFuncMap = map[string]hashFunc{
-	"md5":        md5.New,
-	"sha1":       sha1.New,
-	"sha256":     sha256.New,
-	"sha512":     sha512.New,
-	"sha384":     sha512.New384,
-	"sha512/224": sha512.New512_224,
-	"sha512/256": sha512.New512_256,
-}
-
-type kdf interface {
+// KDF should be implemented for different kdfs
+type KDF interface {
 	GetSalt() []byte
 	SetSalt(salt []byte)
 
@@ -35,7 +19,7 @@ type kdf interface {
 	Verify(key, hashed []byte) (bool, error)
 }
 
-var kdfs = []kdf{
+var kdfs = []KDF{
 	(*PBKDF2)(nil),
 	(*Bcrypt)(nil),
 }
@@ -92,8 +76,22 @@ func ListAvailableKDFMethods() []string {
 	return keys
 }
 
+// CreateKDF crypted key derivation
+func CreateKDF(method, param string) (KDF, error) {
+	typeKDF, ok := mapKDF[method]
+	if !ok {
+		return nil, fmt.Errorf("Method not available: '%s'", method)
+	}
+
+	d := reflect.New(typeKDF.Elem()).Interface().(KDF)
+
+	d.ParseParam(param)
+
+	return d, nil
+}
+
 // Generate crypted key derivation
-func Generate(key string, d kdf) (string, error) {
+func Generate(key string, d KDF) (string, error) {
 	method := strings.ToLower(reflect.TypeOf(d).Elem().Name())
 
 	keyDerived, err := d.KDF([]byte(key))
@@ -125,7 +123,7 @@ func Verify(key, crypted string) (bool, error) {
 		return false, fmt.Errorf("Method not available: '%s'", method)
 	}
 
-	d := reflect.New(typeKDF.Elem()).Interface().(kdf)
+	d := reflect.New(typeKDF.Elem()).Interface().(KDF)
 
 	saltOrigin, err := base64.RawStdEncoding.DecodeString(salt)
 	if err != nil {
