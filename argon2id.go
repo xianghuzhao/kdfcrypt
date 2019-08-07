@@ -11,14 +11,14 @@ import (
 // Argon2id parameters
 type Argon2id struct {
 	kdfCommon
-	Iteration uint32
-	Thread    uint8
-	Memory    uint32
+	Iteration   uint32
+	Parallelism uint8
+	Memory      uint32
 }
 
 // GenerateParam get params from string
 func (d *Argon2id) GenerateParam() (string, error) {
-	param := fmt.Sprintf("ver=%d,iter=%d,mem=%d,thrd=%d", argon2.Version, d.Iteration, d.Memory, d.Thread)
+	param := fmt.Sprintf("v=%d,t=%d,m=%d,p=%d", argon2.Version, d.Iteration, d.Memory, d.Parallelism)
 	return param, nil
 }
 
@@ -32,7 +32,7 @@ func (d *Argon2id) ParseParam(param string) error {
 		}
 
 		switch kv[0] {
-		case "ver":
+		case "v":
 			i, err := strconv.Atoi(kv[1])
 			if err != nil {
 				return fmt.Errorf("Invalid version number: '%s'", kv[1])
@@ -41,24 +41,24 @@ func (d *Argon2id) ParseParam(param string) error {
 				return fmt.Errorf("Version number must be: '%d'", argon2.Version)
 			}
 			d.Iteration = uint32(i)
-		case "iter":
+		case "t":
 			i, err := strconv.Atoi(kv[1])
 			if err != nil {
-				return fmt.Errorf("Invalid iter number: '%s'", kv[1])
+				return fmt.Errorf("Invalid iteration number: '%s'", kv[1])
 			}
 			d.Iteration = uint32(i)
-		case "mem":
+		case "m":
 			i, err := strconv.Atoi(kv[1])
 			if err != nil {
-				return fmt.Errorf("Invalid mem number: '%s'", kv[1])
+				return fmt.Errorf("Invalid memory number: '%s'", kv[1])
 			}
 			d.Memory = uint32(i)
-		case "thrd":
+		case "p":
 			i, err := strconv.Atoi(kv[1])
 			if err != nil {
-				return fmt.Errorf("Invalid thread number: '%s'", kv[1])
+				return fmt.Errorf("Invalid parallelism number: '%s'", kv[1])
 			}
-			d.Thread = uint8(i)
+			d.Parallelism = uint8(i)
 		default:
 			return fmt.Errorf("Invalid param: '%s'", kv[0])
 		}
@@ -76,7 +76,7 @@ func (d *Argon2id) KDF(key []byte) ([]byte, error) {
 		d.KeyLength = 32
 	}
 
-	hashed := argon2.IDKey([]byte(key), d.Salt, d.Iteration, d.Memory, d.Thread, d.KeyLength)
+	hashed := argon2.IDKey([]byte(key), d.Salt, d.Iteration, d.Memory, d.Parallelism, d.KeyLength)
 	return hashed, nil
 }
 

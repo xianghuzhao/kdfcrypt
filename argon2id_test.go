@@ -6,9 +6,9 @@ import (
 
 func TestArgon2idKDF(t *testing.T) {
 	d := Argon2id{
-		Iteration: 2,
-		Memory:    32 * 1024,
-		Thread:    1,
+		Iteration:   2,
+		Memory:      64 * 1024,
+		Parallelism: 1,
 	}
 	d.KeyLength = 32
 

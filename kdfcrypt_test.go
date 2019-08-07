@@ -101,7 +101,7 @@ func TestGenerateAndVerify(t *testing.T) {
 }
 
 func TestCreateKDF(t *testing.T) {
-	kdf, err := CreateKDF("argon2id", "ver=19,iter=1,mem=32768,thrd=1")
+	kdf, err := CreateKDF("argon2id", "v=19,t=1,m=32768,p=1")
 	if err != nil {
 		t.Fatalf("Create KDF error: %s", err)
 	}
