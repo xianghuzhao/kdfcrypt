@@ -45,9 +45,10 @@ func base64Decode(src []byte) ([]byte, error) {
 
 // Bcrypt parameters
 type Bcrypt struct {
-	Salt    []byte
-	Cost    int
-	Version string
+	Salt      []byte
+	KeyLength uint32
+	Cost      int
+	Version   string
 }
 
 // GetSalt get salt value
@@ -58,6 +59,16 @@ func (d *Bcrypt) GetSalt() []byte {
 // SetSalt set salt value
 func (d *Bcrypt) SetSalt(salt []byte) {
 	d.Salt = salt
+}
+
+// GetKeyLength get key length
+func (d *Bcrypt) GetKeyLength() uint32 {
+	return d.KeyLength
+}
+
+// SetKeyLength set key length
+func (d *Bcrypt) SetKeyLength(length uint32) {
+	d.KeyLength = length
 }
 
 // GenerateParam get params from string

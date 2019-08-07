@@ -77,14 +77,38 @@ func TestParseCryptedString(t *testing.T) {
 
 func TestGenerateAndVerify(t *testing.T) {
 	d := PBKDF2{
-		KeyLength: 32,
 		Iteration: 4096,
 		HashFunc:  "sha512/256",
 	}
+	d.KeyLength = 32
 
 	key := "password"
 
 	crypted, err := Generate(key, &d)
+	if err != nil {
+		t.Fatalf("Generate error: %s", err)
+	}
+
+	fmt.Println(crypted)
+
+	match, err := Verify(key, crypted)
+	if err != nil {
+		t.Fatalf("Verify error: %s", err)
+	}
+	if !match {
+		t.Errorf("Verify does not match")
+	}
+}
+
+func TestCreateKDF(t *testing.T) {
+	kdf, err := CreateKDF("argon2id", "ver=19,iter=1,mem=32768,thrd=1")
+	if err != nil {
+		t.Fatalf("Create KDF error: %s", err)
+	}
+
+	key := "password"
+
+	crypted, err := Generate(key, kdf)
 	if err != nil {
 		t.Fatalf("Generate error: %s", err)
 	}

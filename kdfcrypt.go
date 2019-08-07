@@ -12,6 +12,9 @@ type KDF interface {
 	GetSalt() []byte
 	SetSalt(salt []byte)
 
+	GetKeyLength() uint32
+	SetKeyLength(length uint32)
+
 	GenerateParam() (string, error)
 	ParseParam(param string) error
 
@@ -20,6 +23,7 @@ type KDF interface {
 }
 
 var kdfs = []KDF{
+	(*Argon2id)(nil),
 	(*PBKDF2)(nil),
 	(*Bcrypt)(nil),
 }
@@ -85,7 +89,10 @@ func CreateKDF(method, param string) (KDF, error) {
 
 	d := reflect.New(typeKDF.Elem()).Interface().(KDF)
 
-	d.ParseParam(param)
+	err := d.ParseParam(param)
+	if err != nil {
+		return nil, err
+	}
 
 	return d, nil
 }
@@ -118,12 +125,10 @@ func Generate(key string, d KDF) (string, error) {
 func Verify(key, crypted string) (bool, error) {
 	method, param, salt, value := parseCryptedString(crypted)
 
-	typeKDF, ok := mapKDF[method]
-	if !ok {
-		return false, fmt.Errorf("Method not available: '%s'", method)
+	d, err := CreateKDF(method, param)
+	if err != nil {
+		return false, err
 	}
-
-	d := reflect.New(typeKDF.Elem()).Interface().(KDF)
 
 	saltOrigin, err := base64.RawStdEncoding.DecodeString(salt)
 	if err != nil {
@@ -135,7 +140,6 @@ func Verify(key, crypted string) (bool, error) {
 		return false, err
 	}
 
-	d.ParseParam(param)
 	d.SetSalt(saltOrigin)
 
 	match, err := d.Verify([]byte(key), valueOrigin)

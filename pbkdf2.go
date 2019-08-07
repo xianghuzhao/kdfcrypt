@@ -11,7 +11,6 @@ import (
 // PBKDF2 parameters
 type PBKDF2 struct {
 	kdfCommon
-	KeyLength int
 	Iteration int
 	HashFunc  string
 }
@@ -58,12 +57,12 @@ func (d *PBKDF2) KDF(key []byte) ([]byte, error) {
 		d.generateRandomSalt()
 	}
 
-	hashed := pbkdf2.Key([]byte(key), d.Salt, d.Iteration, d.KeyLength, hashFunc)
+	hashed := pbkdf2.Key([]byte(key), d.Salt, d.Iteration, int(d.KeyLength), hashFunc)
 	return hashed, nil
 }
 
 // Verify compare password with hash
 func (d *PBKDF2) Verify(key, hashed []byte) (bool, error) {
-	d.KeyLength = len(hashed)
+	d.KeyLength = uint32(len(hashed))
 	return verifyByKDF(key, hashed, d)
 }

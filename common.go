@@ -25,6 +25,7 @@ var hashFuncMap = map[string]hashFunc{
 type kdfCommon struct {
 	Salt              []byte
 	DefaultSaltLength uint32
+	KeyLength         uint32
 }
 
 func (d *kdfCommon) GetSalt() []byte {
@@ -33,6 +34,14 @@ func (d *kdfCommon) GetSalt() []byte {
 
 func (d *kdfCommon) SetSalt(salt []byte) {
 	d.Salt = salt
+}
+
+func (d *kdfCommon) GetKeyLength() uint32 {
+	return d.KeyLength
+}
+
+func (d *kdfCommon) SetKeyLength(length uint32) {
+	d.KeyLength = length
 }
 
 func (d *kdfCommon) generateRandomSalt() {
