@@ -103,7 +103,7 @@ func (d *Bcrypt) ParseParam(param string) error {
 }
 
 // KDF get the kdf with bcrypt
-func (d *Bcrypt) KDF(value []byte) ([]byte, error) {
+func (d *Bcrypt) KDF(key []byte) ([]byte, error) {
 	if d.Salt != nil {
 		return nil, errors.New("Bcrypt does not support user defined salt")
 	}
@@ -112,7 +112,7 @@ func (d *Bcrypt) KDF(value []byte) ([]byte, error) {
 		d.Cost = bcrypt.DefaultCost
 	}
 
-	result, err := bcrypt.GenerateFromPassword([]byte(value), d.Cost)
+	result, err := bcrypt.GenerateFromPassword([]byte(key), d.Cost)
 	if err != nil {
 		return nil, err
 	}
