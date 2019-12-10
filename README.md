@@ -32,12 +32,12 @@ import (
 func main() {
 	encoded, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
 		Algorithm:        "argon2id",
-		Param:            "m=4096,t=1,p=1",
+		Param:            "m=65536,t=1,p=4",
 		RandomSaltLength: 16,
 		HashLength:       32,
 	})
 
-	// $argon2id$v=19,m=4096,t=1,p=1$mD+rvcR+6nuAV6MJFOmDjw$IqfwTPk9RMGeOv4pCE1QiURuSoi655GUVjcQAk81eXM
+	// $argon2id$v=19,m=65536,t=1,p=4$mD+rvcR+6nuAV6MJFOmDjw$IqfwTPk9RMGeOv4pCE1QiURuSoi655GUVjcQAk81eXM
 	fmt.Println(encoded)
 
 	match, _ := kdfcrypt.Verify("password", encoded)
