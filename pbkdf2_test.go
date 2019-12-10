@@ -38,7 +38,7 @@ func TestPBKDF2(t *testing.T) {
 			HashFunc:  pbkdf2Eg.hashFunc,
 		}
 		kdf.SetDefaultParam()
-		hashed, err := kdf.Generate([]byte(pbkdf2Eg.key), []byte(pbkdf2Eg.salt), pbkdf2Eg.hashLength)
+		hashed, err := kdf.Derive([]byte(pbkdf2Eg.key), []byte(pbkdf2Eg.salt), pbkdf2Eg.hashLength)
 		if err != nil {
 			t.Errorf("PBKDF2 generate error: %s", err)
 		}

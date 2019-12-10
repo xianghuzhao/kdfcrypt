@@ -42,7 +42,7 @@ func TestScrypt(t *testing.T) {
 			Parallelization: scryptEg.parallelization,
 		}
 		kdf.SetDefaultParam()
-		hashed, err := kdf.Generate([]byte(scryptEg.key), []byte(scryptEg.salt), scryptEg.hashLength)
+		hashed, err := kdf.Derive([]byte(scryptEg.key), []byte(scryptEg.salt), scryptEg.hashLength)
 		if err != nil {
 			t.Errorf("Scrypt generate error: %s", err)
 		}

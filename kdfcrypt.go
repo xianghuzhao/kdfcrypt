@@ -13,7 +13,7 @@ import (
 // KDF should be implemented for different kdfs.
 type KDF interface {
 	SetDefaultParam()
-	Generate(key, salt []byte, hashLength uint32) ([]byte, error)
+	Derive(key, salt []byte, hashLength uint32) ([]byte, error)
 }
 
 // Option for generating hash from KDF.
@@ -238,7 +238,7 @@ func generateEncodedString(key []byte, kdf KDF, algorithm string, salt []byte, h
 
 	salt64 := base64.RawStdEncoding.EncodeToString(salt)
 
-	hashed, err := kdf.Generate(key, salt, hashLength)
+	hashed, err := kdf.Derive(key, salt, hashLength)
 	if err != nil {
 		return "", err
 	}
@@ -369,7 +369,7 @@ func Verify(key, encoded string) (bool, error) {
 		return false, err
 	}
 
-	newHashed, err := kdf.Generate([]byte(key), saltOrigin, uint32(len(hashedOrigin)))
+	newHashed, err := kdf.Derive([]byte(key), saltOrigin, uint32(len(hashedOrigin)))
 	if err != nil {
 		return false, err
 	}

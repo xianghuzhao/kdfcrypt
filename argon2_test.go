@@ -47,7 +47,7 @@ func TestArgon2i(t *testing.T) {
 			},
 		}
 		kdf.SetDefaultParam()
-		hashed, err := kdf.Generate([]byte(argon2Eg.key), []byte(argon2Eg.salt), argon2Eg.hashLength)
+		hashed, err := kdf.Derive([]byte(argon2Eg.key), []byte(argon2Eg.salt), argon2Eg.hashLength)
 		if err != nil {
 			t.Errorf("Argon2i generate error: %s", err)
 		}
@@ -68,7 +68,7 @@ func TestArgon2id(t *testing.T) {
 			},
 		}
 		kdf.SetDefaultParam()
-		hashed, err := kdf.Generate([]byte(argon2Eg.key), []byte(argon2Eg.salt), argon2Eg.hashLength)
+		hashed, err := kdf.Derive([]byte(argon2Eg.key), []byte(argon2Eg.salt), argon2Eg.hashLength)
 		if err != nil {
 			t.Errorf("Argon2id generate error: %s", err)
 		}

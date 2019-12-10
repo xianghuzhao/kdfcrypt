@@ -42,8 +42,8 @@ func (kdf *Argon2) SetDefaultParam() {
 	}
 }
 
-// Generate hash with Argon2i.
-func (kdf *Argon2i) Generate(key, salt []byte, hashLength uint32) ([]byte, error) {
+// Derive hash with Argon2i.
+func (kdf *Argon2i) Derive(key, salt []byte, hashLength uint32) ([]byte, error) {
 	if err := kdf.validateVersion(); err != nil {
 		return nil, err
 	}
@@ -57,8 +57,8 @@ type Argon2id struct {
 	Argon2
 }
 
-// Generate hash with Argon2id.
-func (kdf *Argon2id) Generate(key, salt []byte, hashLength uint32) ([]byte, error) {
+// Derive hash with Argon2id.
+func (kdf *Argon2id) Derive(key, salt []byte, hashLength uint32) ([]byte, error) {
 	if err := kdf.validateVersion(); err != nil {
 		return nil, err
 	}

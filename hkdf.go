@@ -19,8 +19,8 @@ func (kdf *HKDF) SetDefaultParam() {
 	}
 }
 
-// Generate hash with hkdf.
-func (kdf *HKDF) Generate(key, salt []byte, hashLength uint32) ([]byte, error) {
+// Derive hash with hkdf.
+func (kdf *HKDF) Derive(key, salt []byte, hashLength uint32) ([]byte, error) {
 	hashFunc, ok := hashFuncMap[kdf.HashFunc]
 	if !ok {
 		return nil, fmt.Errorf("Hash func for HKDF is not valid: %s", kdf.HashFunc)

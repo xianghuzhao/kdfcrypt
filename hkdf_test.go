@@ -38,7 +38,7 @@ func TestHKDF(t *testing.T) {
 			Info:     hkdfEg.info,
 		}
 		kdf.SetDefaultParam()
-		hashed, err := kdf.Generate([]byte(hkdfEg.key), []byte(hkdfEg.salt), hkdfEg.hashLength)
+		hashed, err := kdf.Derive([]byte(hkdfEg.key), []byte(hkdfEg.salt), hkdfEg.hashLength)
 		if err != nil {
 			t.Errorf("HKDF generate error: %s", err)
 		}

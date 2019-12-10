@@ -53,17 +53,17 @@ For the case of getting a derived key for AES-256 (which needs a 32-byte key):
 ```go
 kdf, err := kdfcrypt.CreateKDF("argon2id", "m=4096,t=1,p=1")
 salt, err := kdfcrypt.GenerateRandomSalt(16)
-aes256Key, err := kdf.Generate("password", salt, 32)
+aes256Key, err := kdf.Derive("password", salt, 32)
 ```
 
-The KDF name, param and salt must be preserved in order to get
+The KDF algorithm, param and salt must be the same in order to get
 the same key again.
 
 
 ## Format of the encoded password
 
 Password will be encoded into a single string which could be safely
-stored.
+saved.
 
 There are four parts of the encoded string.
 
@@ -80,7 +80,7 @@ $ KDF    $ param             $ salt (base64)        $ hash (base64)
 
 ## Option
 
-The `Option` structure is passed as argument for `Encode`.
+The `Option` struct is passed as argument for `Encode`.
 
 1. Algorithm: Could be one of `argon2id`, `argon2i`, `scrypt`, `pbkdf`,
    `hkdf`.
@@ -184,14 +184,13 @@ The `hash` type could be one of the followings:
 
 ### HKDF
 
+HKDF should not be used for password storage.
+
 ```go
-encoded, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
-	Algorithm:        "hkdf",
-	Param:            "hash=sha512",
-})
-// $hkdf$hash=sha512,info=$DO32HNSwKMBghI9Xo+Ozcw$bmJAxQ3WizkbDBkzTvX+xASyKGhZ2YqNZdhz5hwclFw
+kdf, err := kdfcrypt.CreateKDF("hkdf", "hash=sha512,info=hkdf-test")
+salt, err := kdfcrypt.GenerateRandomSalt(16)
+key, err := kdf.Derive("key", salt, 32)
 ```
 
-The `info` is optional.
-
 The `hash` type is the same as PBKDF.
+The `info` is optional.

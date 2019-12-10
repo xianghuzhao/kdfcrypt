@@ -1,7 +1,6 @@
 package kdfcrypt
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -154,7 +153,6 @@ func TestRandomSalt(t *testing.T) {
 		}
 		encoded1, _ := Encode(keyEg, opt)
 		encoded2, _ := Encode(keyEg, opt)
-		fmt.Println(encoded1)
 		if encoded1 == encoded2 {
 			t.Errorf("Encoded key is the same with random salt for algorithm: %s", algorithm)
 		}

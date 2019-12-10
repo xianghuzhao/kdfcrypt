@@ -22,8 +22,8 @@ func (kdf *PBKDF2) SetDefaultParam() {
 	}
 }
 
-// Generate hash with PBKDF2.
-func (kdf *PBKDF2) Generate(key, salt []byte, hashLength uint32) ([]byte, error) {
+// Derive hash with PBKDF2.
+func (kdf *PBKDF2) Derive(key, salt []byte, hashLength uint32) ([]byte, error) {
 	hashFunc, ok := hashFuncMap[kdf.HashFunc]
 	if !ok {
 		return nil, fmt.Errorf("Hash func for PBKDF2 is not valid: %s", kdf.HashFunc)
