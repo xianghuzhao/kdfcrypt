@@ -1,5 +1,7 @@
 # Key derivation function for password hashing
 
+[![GoDoc](https://godoc.org/github.com/xianghuzhao/kdfcrypt?status.svg)](https://godoc.org/github.com/xianghuzhao/kdfcrypt)
+
 `kdfcrypt` is a library for using KDF (key derivation function) to
 generate password hashing.
 
