@@ -5,6 +5,9 @@
 `kdfcrypt` is a library for using KDF (key derivation function) to
 generate password hashing.
 
+With this library, it is easy to make multiple password hashing
+algorithms coexist in the same program.
+
 The currently supported KDFs are
 [argon2](https://en.wikipedia.org/wiki/Argon2),
 [scrypt](https://en.bitcoinwiki.org/wiki/Scrypt),
