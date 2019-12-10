@@ -18,6 +18,8 @@ These algorithms are implemented in
 
 ## Example
 
+### Password verification
+
 ```go
 package main
 
@@ -43,6 +45,9 @@ func main() {
 }
 ```
 
+
+### Generate key for AES-256
+
 For the case of getting a derived key for AES-256 (which needs a 32-byte key):
 
 ```go
@@ -51,8 +56,11 @@ salt, err := kdfcrypt.GenerateRandomSalt(16)
 aes256Key, err := kdf.Generate("password", salt, 32)
 ```
 
+The KDF name, param and salt must be preserved in order to get
+the same key again.
 
-## Format of encoded password
+
+## Format of the encoded password
 
 Password will be encoded into a single string which could be safely
 stored.
@@ -72,10 +80,12 @@ $ KDF    $ param             $ salt (base64)        $ hash (base64)
 
 ## Option
 
+The `Option` structure is passed as argument for `Encode`.
+
 1. Algorithm: Could be one of `argon2id`, `argon2i`, `scrypt`, `pbkdf`,
    `hkdf`.
-2. Param: String for the KDF param. The format varies among different
-   KDFs.
+2. Param: String for the KDF param. Different items are separated by
+   ",". The detailed items vary among different KDFs.
 3. RandomSaltLength: The length for the random salt in byte. If `Salt`
    is not empty, `RandomSaltLength` will be ignored.
 4. Salt: Salt for the hash.
@@ -159,6 +169,7 @@ encoded, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
 ```
 
 The `iter` is the iteration count for PBKDF.
+
 The `hash` type could be one of the followings:
 
 * md5
@@ -182,4 +193,5 @@ encoded, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
 ```
 
 The `info` is optional.
+
 The `hash` type is the same as PBKDF.
