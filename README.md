@@ -65,7 +65,7 @@ the same key again.
 Password will be encoded into a single string which could be safely
 saved.
 
-There are four parts of the encoded string.
+There are four parts of the encoded string which are splitted by "`$`".
 
 1. The name of KDF.
 2. Param string of the KDF, which depends on KDF.
@@ -85,7 +85,7 @@ The `Option` struct is passed as argument for `Encode`.
 1. Algorithm: Could be one of `argon2id`, `argon2i`, `scrypt`, `pbkdf`,
    `hkdf`.
 2. Param: String for the KDF param. Different items are separated by
-   ",". The detailed items vary among different KDFs.
+   comma "`,`". The detailed items vary among different KDFs.
 3. RandomSaltLength: The length for the random salt in byte. If `Salt`
    is not empty, `RandomSaltLength` will be ignored.
 4. Salt: Salt for the hash.
