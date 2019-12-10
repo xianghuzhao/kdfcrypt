@@ -30,8 +30,8 @@ var mapKDF = make(map[string]reflect.Type)
 func init() {
 	RegisterKDF("argon2i", (*Argon2i)(nil))
 	RegisterKDF("argon2id", (*Argon2id)(nil))
-	RegisterKDF("pbkdf2", (*PBKDF2)(nil))
 	RegisterKDF("scrypt", (*Scrypt)(nil))
+	RegisterKDF("pbkdf2", (*PBKDF2)(nil))
 	RegisterKDF("hkdf", (*HKDF)(nil))
 }
 

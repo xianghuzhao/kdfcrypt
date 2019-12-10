@@ -1,14 +1,15 @@
 package kdfcrypt
 
 import (
+	"fmt"
 	"testing"
 )
 
 var algorithms = map[string]KDF{
 	"argon2i":  (*Argon2i)(nil),
 	"argon2id": (*Argon2id)(nil),
-	"pbkdf2":   (*PBKDF2)(nil),
 	"scrypt":   (*Scrypt)(nil),
+	"pbkdf2":   (*PBKDF2)(nil),
 	"hkdf":     (*HKDF)(nil),
 }
 
@@ -131,6 +132,20 @@ func TestEncodeAndVerify(t *testing.T) {
 	}
 }
 
+func TestFixedSalt(t *testing.T) {
+	for algorithm := range algorithms {
+		opt := &Option{
+			Algorithm: algorithm,
+			Salt:      "A_fixed-salt+123",
+		}
+		encoded1, _ := Encode(keyEg, opt)
+		encoded2, _ := Encode(keyEg, opt)
+		if encoded1 != encoded2 {
+			t.Errorf("Encoded key is not the same with fixed salt for algorithm: %s", algorithm)
+		}
+	}
+}
+
 func TestRandomSalt(t *testing.T) {
 	for algorithm := range algorithms {
 		opt := &Option{
@@ -139,6 +154,7 @@ func TestRandomSalt(t *testing.T) {
 		}
 		encoded1, _ := Encode(keyEg, opt)
 		encoded2, _ := Encode(keyEg, opt)
+		fmt.Println(encoded1)
 		if encoded1 == encoded2 {
 			t.Errorf("Encoded key is the same with random salt for algorithm: %s", algorithm)
 		}
