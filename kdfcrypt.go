@@ -13,7 +13,7 @@ import (
 // KDF should be implemented for different kdfs.
 type KDF interface {
 	SetDefaultParam()
-	Derive(key, salt []byte, hashLength uint32) ([]byte, error)
+	Derive(password, salt []byte, hashLength uint32) ([]byte, error)
 }
 
 // Option for generating hash from KDF.
@@ -231,14 +231,14 @@ func parseEncodedString(encoded string) (string, string, string, string) {
 	return algorithm, param, salt, value
 }
 
-func generateEncodedString(key []byte, kdf KDF, algorithm string, salt []byte, hashLength uint32) (string, error) {
+func generateEncodedString(password []byte, kdf KDF, algorithm string, salt []byte, hashLength uint32) (string, error) {
 	if hashLength == 0 {
 		hashLength = 32
 	}
 
 	salt64 := base64.RawStdEncoding.EncodeToString(salt)
 
-	hashed, err := kdf.Derive(key, salt, hashLength)
+	hashed, err := kdf.Derive(password, salt, hashLength)
 	if err != nil {
 		return "", err
 	}
@@ -310,14 +310,14 @@ func CreateKDF(algorithm, param string) (KDF, error) {
 	return kdf, nil
 }
 
-// EncodeFromKDF encode the key with the given KDF.
-func EncodeFromKDF(key string, kdf KDF, salt string, hashLength uint32) (string, error) {
+// EncodeFromKDF encode the password with the given KDF.
+func EncodeFromKDF(password string, kdf KDF, salt string, hashLength uint32) (string, error) {
 	algorithm, err := KDFName(kdf)
 	if err != nil {
 		return "", err
 	}
 
-	encoded, err := generateEncodedString([]byte(key), kdf, algorithm, []byte(salt), hashLength)
+	encoded, err := generateEncodedString([]byte(password), kdf, algorithm, []byte(salt), hashLength)
 	if err != nil {
 		return "", err
 	}
@@ -325,8 +325,8 @@ func EncodeFromKDF(key string, kdf KDF, salt string, hashLength uint32) (string,
 	return encoded, nil
 }
 
-// Encode generates encoded key.
-func Encode(key string, opt *Option) (string, error) {
+// Encode generates encoded password.
+func Encode(password string, opt *Option) (string, error) {
 	kdf, err := CreateKDF(opt.Algorithm, opt.Param)
 	if err != nil {
 		return "", err
@@ -342,7 +342,7 @@ func Encode(key string, opt *Option) (string, error) {
 		salt = []byte(opt.Salt)
 	}
 
-	encoded, err := generateEncodedString([]byte(key), kdf, opt.Algorithm, salt, opt.HashLength)
+	encoded, err := generateEncodedString([]byte(password), kdf, opt.Algorithm, salt, opt.HashLength)
 	if err != nil {
 		return "", err
 	}
@@ -350,8 +350,8 @@ func Encode(key string, opt *Option) (string, error) {
 	return encoded, nil
 }
 
-// Verify key and encoded key.
-func Verify(key, encoded string) (bool, error) {
+// Verify password and encoded password.
+func Verify(password, encoded string) (bool, error) {
 	algorithm, param, salt, hashed := parseEncodedString(encoded)
 
 	kdf, err := CreateKDF(algorithm, param)
@@ -369,7 +369,7 @@ func Verify(key, encoded string) (bool, error) {
 		return false, err
 	}
 
-	newHashed, err := kdf.Derive([]byte(key), saltOrigin, uint32(len(hashedOrigin)))
+	newHashed, err := kdf.Derive([]byte(password), saltOrigin, uint32(len(hashedOrigin)))
 	if err != nil {
 		return false, err
 	}

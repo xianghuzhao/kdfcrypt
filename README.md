@@ -189,7 +189,7 @@ HKDF should not be used for password storage.
 ```go
 kdf, err := kdfcrypt.CreateKDF("hkdf", "hash=sha512,info=hkdf-test")
 salt, err := kdfcrypt.GenerateRandomSalt(16)
-key, err := kdf.Derive("key", salt, 32)
+key, err := kdf.Derive("password", salt, 32)
 ```
 
 The `hash` type is the same as PBKDF.

@@ -12,10 +12,10 @@ var algorithms = map[string]KDF{
 	"hkdf":     (*HKDF)(nil),
 }
 
-const keyEg = "This_is_1_Password_Example!"
+const pwEg = "This_is_1_Password_Example!"
 
-var keyEgs = []string{
-	keyEg,
+var pwEgs = []string{
+	pwEg,
 	"",
 	"                                ",
 	"00000000000000000000000000000000",
@@ -114,13 +114,13 @@ func TestEncodeAndVerify(t *testing.T) {
 			RandomSaltLength: 16,
 		}
 
-		for _, key := range keyEgs {
-			encoded, err := Encode(key, opt)
+		for _, pw := range pwEgs {
+			encoded, err := Encode(pw, opt)
 			if err != nil {
 				t.Fatalf("Encode error: %s", err)
 			}
 
-			match, err := Verify(key, encoded)
+			match, err := Verify(pw, encoded)
 			if err != nil {
 				t.Fatalf("Verify error: %s", err)
 			}
@@ -137,8 +137,8 @@ func TestFixedSalt(t *testing.T) {
 			Algorithm: algorithm,
 			Salt:      "A_fixed-salt+123",
 		}
-		encoded1, _ := Encode(keyEg, opt)
-		encoded2, _ := Encode(keyEg, opt)
+		encoded1, _ := Encode(pwEg, opt)
+		encoded2, _ := Encode(pwEg, opt)
 		if encoded1 != encoded2 {
 			t.Errorf("Encoded key is not the same with fixed salt for algorithm: %s", algorithm)
 		}
@@ -151,8 +151,8 @@ func TestRandomSalt(t *testing.T) {
 			Algorithm:        algorithm,
 			RandomSaltLength: 16,
 		}
-		encoded1, _ := Encode(keyEg, opt)
-		encoded2, _ := Encode(keyEg, opt)
+		encoded1, _ := Encode(pwEg, opt)
+		encoded2, _ := Encode(pwEg, opt)
 		if encoded1 == encoded2 {
 			t.Errorf("Encoded key is the same with random salt for algorithm: %s", algorithm)
 		}

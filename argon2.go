@@ -43,12 +43,12 @@ func (kdf *Argon2) SetDefaultParam() {
 }
 
 // Derive hash with Argon2i.
-func (kdf *Argon2i) Derive(key, salt []byte, hashLength uint32) ([]byte, error) {
+func (kdf *Argon2i) Derive(password, salt []byte, hashLength uint32) ([]byte, error) {
 	if err := kdf.validateVersion(); err != nil {
 		return nil, err
 	}
 
-	hashed := argon2.Key([]byte(key), salt, kdf.Iteration, kdf.Memory, kdf.Parallelism, hashLength)
+	hashed := argon2.Key([]byte(password), salt, kdf.Iteration, kdf.Memory, kdf.Parallelism, hashLength)
 	return hashed, nil
 }
 
@@ -58,11 +58,11 @@ type Argon2id struct {
 }
 
 // Derive hash with Argon2id.
-func (kdf *Argon2id) Derive(key, salt []byte, hashLength uint32) ([]byte, error) {
+func (kdf *Argon2id) Derive(password, salt []byte, hashLength uint32) ([]byte, error) {
 	if err := kdf.validateVersion(); err != nil {
 		return nil, err
 	}
 
-	hashed := argon2.IDKey([]byte(key), salt, kdf.Iteration, kdf.Memory, kdf.Parallelism, hashLength)
+	hashed := argon2.IDKey([]byte(password), salt, kdf.Iteration, kdf.Memory, kdf.Parallelism, hashLength)
 	return hashed, nil
 }

@@ -11,7 +11,7 @@ var scryptEgs = []struct {
 	parallelization int
 	salt            string
 	hashLength      uint32
-	key             string
+	password        string
 	scryptResult    string
 }{
 	{
@@ -20,7 +20,7 @@ var scryptEgs = []struct {
 		parallelization: 1,
 		salt:            "abcdefgh",
 		hashLength:      32,
-		key:             "This_is_1_Password_Example!",
+		password:        "This_is_1_Password_Example!",
 		scryptResult:    "9638fb20584c46380657b4d305f73e2fbc21217da23f8394ff93a3fa290a0191",
 	},
 	{
@@ -29,7 +29,7 @@ var scryptEgs = []struct {
 		parallelization: 3,
 		salt:            "pIBFX2B05zuR7DSl",
 		hashLength:      32,
-		key:             "sdOrYO5wvpQXF8tAxNC7Jt",
+		password:        "sdOrYO5wvpQXF8tAxNC7Jt",
 		scryptResult:    "18f5d6505a6e96a3be3bc593f1b4665b48203732652c68d99a656fb336866d78",
 	},
 }
@@ -42,13 +42,13 @@ func TestScrypt(t *testing.T) {
 			Parallelization: scryptEg.parallelization,
 		}
 		kdf.SetDefaultParam()
-		hashed, err := kdf.Derive([]byte(scryptEg.key), []byte(scryptEg.salt), scryptEg.hashLength)
+		hashed, err := kdf.Derive([]byte(scryptEg.password), []byte(scryptEg.salt), scryptEg.hashLength)
 		if err != nil {
 			t.Errorf("Scrypt generate error: %s", err)
 		}
 		hashedHex := hex.EncodeToString(hashed)
 		if hashedHex != scryptEg.scryptResult {
-			t.Errorf(`Scrypt get wrong result for "%s": %s | %s`, scryptEg.key, hashedHex, scryptEg.scryptResult)
+			t.Errorf(`Scrypt get wrong result for "%s": %s | %s`, scryptEg.password, hashedHex, scryptEg.scryptResult)
 		}
 	}
 }
@@ -61,12 +61,12 @@ func TestEncodeFromScrypt(t *testing.T) {
 	}
 	kdf.SetDefaultParam()
 
-	encoded, err := EncodeFromKDF(keyEg, kdf, "A_fixed-salt+123", 32)
+	encoded, err := EncodeFromKDF(pwEg, kdf, "A_fixed-salt+123", 32)
 	if err != nil {
 		t.Fatalf("Encode from KDF error: %s", err)
 	}
 
-	match, err := Verify(keyEg, encoded)
+	match, err := Verify(pwEg, encoded)
 	if err != nil {
 		t.Fatalf("Verify error: %s", err)
 	}

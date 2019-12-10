@@ -23,12 +23,12 @@ func (kdf *PBKDF2) SetDefaultParam() {
 }
 
 // Derive hash with PBKDF2.
-func (kdf *PBKDF2) Derive(key, salt []byte, hashLength uint32) ([]byte, error) {
+func (kdf *PBKDF2) Derive(password, salt []byte, hashLength uint32) ([]byte, error) {
 	hashFunc, ok := hashFuncMap[kdf.HashFunc]
 	if !ok {
 		return nil, fmt.Errorf("Hash func for PBKDF2 is not valid: %s", kdf.HashFunc)
 	}
 
-	hashed := pbkdf2.Key([]byte(key), salt, int(kdf.Iteration), int(hashLength), hashFunc)
+	hashed := pbkdf2.Key([]byte(password), salt, int(kdf.Iteration), int(hashLength), hashFunc)
 	return hashed, nil
 }

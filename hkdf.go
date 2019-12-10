@@ -20,13 +20,13 @@ func (kdf *HKDF) SetDefaultParam() {
 }
 
 // Derive hash with hkdf.
-func (kdf *HKDF) Derive(key, salt []byte, hashLength uint32) ([]byte, error) {
+func (kdf *HKDF) Derive(password, salt []byte, hashLength uint32) ([]byte, error) {
 	hashFunc, ok := hashFuncMap[kdf.HashFunc]
 	if !ok {
 		return nil, fmt.Errorf("Hash func for HKDF is not valid: %s", kdf.HashFunc)
 	}
 
-	reader := hkdf.New(hashFunc, []byte(key), salt, []byte(kdf.Info))
+	reader := hkdf.New(hashFunc, []byte(password), salt, []byte(kdf.Info))
 
 	hashed := make([]byte, hashLength)
 	_, err := reader.Read(hashed)

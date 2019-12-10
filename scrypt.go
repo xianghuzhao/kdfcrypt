@@ -25,7 +25,7 @@ func (kdf *Scrypt) SetDefaultParam() {
 }
 
 // Derive hash with scrypt.
-func (kdf *Scrypt) Derive(key, salt []byte, hashLength uint32) ([]byte, error) {
-	hashed, err := scrypt.Key([]byte(key), salt, kdf.Cost, kdf.BlockSize, kdf.Parallelization, int(hashLength))
+func (kdf *Scrypt) Derive(password, salt []byte, hashLength uint32) ([]byte, error) {
+	hashed, err := scrypt.Key([]byte(password), salt, kdf.Cost, kdf.BlockSize, kdf.Parallelization, int(hashLength))
 	return hashed, err
 }
