@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-var methods = map[string]KDF{
+var algorithms = map[string]KDF{
 	"argon2i":  (*Argon2i)(nil),
 	"argon2id": (*Argon2id)(nil),
 	"pbkdf2":   (*PBKDF2)(nil),
@@ -25,11 +25,11 @@ var keyEgs = []string{
 }
 
 var encodedStringData = []struct {
-	encoded string
-	method  string
-	param   string
-	salt    string
-	value   string
+	encoded   string
+	algorithm string
+	param     string
+	salt      string
+	value     string
 }{
 	{
 		encoded: "",
@@ -49,51 +49,51 @@ var encodedStringData = []struct {
 		value:   "aaabbbcccdddeee",
 	},
 	{
-		encoded: "$argon2id$v=19,i=1$qwert12345$jjjssslllaaauuuwww333",
-		method:  "argon2id",
-		param:   "v=19,i=1",
-		salt:    "qwert12345",
-		value:   "jjjssslllaaauuuwww333",
+		encoded:   "$argon2id$v=19,i=1$qwert12345$jjjssslllaaauuuwww333",
+		algorithm: "argon2id",
+		param:     "v=19,i=1",
+		salt:      "qwert12345",
+		value:     "jjjssslllaaauuuwww333",
 	},
 	{
-		encoded: "$scrypt$wert12345$jjssslllaaauuuwww333",
-		method:  "scrypt",
-		salt:    "wert12345",
-		value:   "jjssslllaaauuuwww333",
+		encoded:   "$scrypt$wert12345$jjssslllaaauuuwww333",
+		algorithm: "scrypt",
+		salt:      "wert12345",
+		value:     "jjssslllaaauuuwww333",
 	},
 	{
-		encoded: "$2a$14$HAhpTYrQ/1GIYvvcVFPm6e$qT4P7iPRHiEKm78rOvIPkNddd3Y6Dk2",
-		method:  "2a",
-		param:   "14",
-		salt:    "HAhpTYrQ/1GIYvvcVFPm6e",
-		value:   "qT4P7iPRHiEKm78rOvIPkNddd3Y6Dk2",
+		encoded:   "$2a$14$HAhpTYrQ/1GIYvvcVFPm6e$qT4P7iPRHiEKm78rOvIPkNddd3Y6Dk2",
+		algorithm: "2a",
+		param:     "14",
+		salt:      "HAhpTYrQ/1GIYvvcVFPm6e",
+		value:     "qT4P7iPRHiEKm78rOvIPkNddd3Y6Dk2",
 	},
 	{
-		encoded: "$6$salt$IxDD3jeSOb5eB1CX5LBsqZFVkJdido3OUILO5Ifz5iwMuTS4XMS130MTSuDDl3aCI6WouIL9AjRbLCelDCy.g.",
-		method:  "6",
-		salt:    "salt",
-		value:   "IxDD3jeSOb5eB1CX5LBsqZFVkJdido3OUILO5Ifz5iwMuTS4XMS130MTSuDDl3aCI6WouIL9AjRbLCelDCy.g.",
+		encoded:   "$6$salt$IxDD3jeSOb5eB1CX5LBsqZFVkJdido3OUILO5Ifz5iwMuTS4XMS130MTSuDDl3aCI6WouIL9AjRbLCelDCy.g.",
+		algorithm: "6",
+		salt:      "salt",
+		value:     "IxDD3jeSOb5eB1CX5LBsqZFVkJdido3OUILO5Ifz5iwMuTS4XMS130MTSuDDl3aCI6WouIL9AjRbLCelDCy.g.",
 	},
 }
 
 func TestKDFName(t *testing.T) {
-	for method, kdf := range methods {
+	for algorithm, kdf := range algorithms {
 		name, err := KDFName(kdf)
 		if err != nil {
-			t.Errorf(`KDF name error for "%s": %s`, method, err)
+			t.Errorf(`KDF name error for "%s": %s`, algorithm, err)
 			continue
 		}
-		if name != method {
-			t.Errorf(`KDF name not correct for method "%s": %s`, method, name)
+		if name != algorithm {
+			t.Errorf(`KDF name not correct for algorithm "%s": %s`, algorithm, name)
 		}
 	}
 }
 
 func TestParseCryptedString(t *testing.T) {
 	for _, d := range encodedStringData {
-		method, param, salt, value := parseEncodedString(d.encoded)
-		if method != d.method {
-			t.Errorf("Parse method unmatch: '%s' != '%s', (%s)", method, d.method, d.encoded)
+		algorithm, param, salt, value := parseEncodedString(d.encoded)
+		if algorithm != d.algorithm {
+			t.Errorf("Parse algorithm unmatch: '%s' != '%s', (%s)", algorithm, d.algorithm, d.encoded)
 		}
 		if param != d.param {
 			t.Errorf("Parse param unmatch: '%s' != '%s', (%s)", param, d.param, d.encoded)
@@ -108,9 +108,9 @@ func TestParseCryptedString(t *testing.T) {
 }
 
 func TestEncodeAndVerify(t *testing.T) {
-	for method := range methods {
+	for algorithm := range algorithms {
 		opt := &Option{
-			Method:          method,
+			Algorithm:       algorithm,
 			RandomSaltLenth: 16,
 		}
 
@@ -132,15 +132,15 @@ func TestEncodeAndVerify(t *testing.T) {
 }
 
 func TestRandomSalt(t *testing.T) {
-	for method := range methods {
+	for algorithm := range algorithms {
 		opt := &Option{
-			Method:          method,
+			Algorithm:       algorithm,
 			RandomSaltLenth: 16,
 		}
 		encoded1, _ := Encode(keyEg, opt)
 		encoded2, _ := Encode(keyEg, opt)
 		if encoded1 == encoded2 {
-			t.Errorf("Encoded key is the same with random salt for method: %s", method)
+			t.Errorf("Encoded key is the same with random salt for algorithm: %s", algorithm)
 		}
 	}
 }

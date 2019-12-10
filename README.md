@@ -16,7 +16,7 @@ The algorithms are implemented by
 
 ```go
 encoded, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
-	Method:          "argon2id",
+	Algorithm:       "argon2id",
 	RandomSaltLenth: 16,
 	Param:           "m=4096,t=1,p=1",
 })

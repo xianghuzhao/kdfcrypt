@@ -18,7 +18,7 @@ type KDF interface {
 
 // Option for generating hash from KDF.
 type Option struct {
-	Method          string
+	Algorithm       string
 	Param           string
 	RandomSaltLenth uint32
 	Salt            string
@@ -200,38 +200,38 @@ func generateParam(kdf KDF) (string, error) {
 }
 
 func parseEncodedString(encoded string) (string, string, string, string) {
-	var method, param, salt, value string
+	var algorithm, param, salt, value string
 
 	encoded = strings.Trim(encoded, "$")
 
 	frags := strings.Split(encoded, "$")
 	if len(frags) == 0 {
-		return method, param, salt, value
+		return algorithm, param, salt, value
 	}
 	value = frags[len(frags)-1]
 
 	frags = frags[:len(frags)-1]
 	if len(frags) == 0 {
-		return method, param, salt, value
+		return algorithm, param, salt, value
 	}
-	method = frags[0]
+	algorithm = frags[0]
 
 	frags = frags[1:]
 	if len(frags) == 0 {
-		return method, param, salt, value
+		return algorithm, param, salt, value
 	}
 	salt = frags[len(frags)-1]
 
 	frags = frags[:len(frags)-1]
 	if len(frags) == 0 {
-		return method, param, salt, value
+		return algorithm, param, salt, value
 	}
 	param = frags[0]
 
-	return method, param, salt, value
+	return algorithm, param, salt, value
 }
 
-func generateEncodedString(key []byte, kdf KDF, method string, salt []byte, hashLength uint32) (string, error) {
+func generateEncodedString(key []byte, kdf KDF, algorithm string, salt []byte, hashLength uint32) (string, error) {
 	if hashLength == 0 {
 		hashLength = 32
 	}
@@ -249,30 +249,30 @@ func generateEncodedString(key []byte, kdf KDF, method string, salt []byte, hash
 		return "", err
 	}
 
-	encoded := fmt.Sprintf("$%s$%s$%s$%s", method, param, salt64, hashed64)
+	encoded := fmt.Sprintf("$%s$%s$%s$%s", algorithm, param, salt64, hashed64)
 
 	return encoded, nil
 }
 
-// RegisterKDF register a KDF with method name.
-func RegisterKDF(method string, kdf KDF) {
-	mapKDF[method] = reflect.TypeOf(kdf)
+// RegisterKDF register a KDF with algorithm name.
+func RegisterKDF(algorithm string, kdf KDF) {
+	mapKDF[algorithm] = reflect.TypeOf(kdf)
 }
 
-// ListKDFMethods list all the available kdf methods.
-func ListKDFMethods() []string {
+// ListKDFAlgorithms list all the available kdf algorithms.
+func ListKDFAlgorithms() []string {
 	keys := make([]string, 0, len(mapKDF))
-	for method := range mapKDF {
-		keys = append(keys, method)
+	for algorithm := range mapKDF {
+		keys = append(keys, algorithm)
 	}
 	return keys
 }
 
-// KDFName returns the method name of the KDF.
+// KDFName returns the algorithm name of the KDF.
 func KDFName(kdf KDF) (string, error) {
-	for method, typeKDF := range mapKDF {
+	for algorithm, typeKDF := range mapKDF {
 		if typeKDF == reflect.TypeOf(kdf) {
-			return method, nil
+			return algorithm, nil
 		}
 	}
 	return "", fmt.Errorf("KDF not registered")
@@ -289,15 +289,15 @@ func GenerateRandomSalt(saltLength uint32) ([]byte, error) {
 }
 
 // CreateKDF creates key derivation function.
-func CreateKDF(method, param string) (KDF, error) {
-	typeKDF, ok := mapKDF[method]
+func CreateKDF(algorithm, param string) (KDF, error) {
+	typeKDF, ok := mapKDF[algorithm]
 	if !ok {
-		return nil, fmt.Errorf("Method not available: '%s'", method)
+		return nil, fmt.Errorf("Algorithm not available: '%s'", algorithm)
 	}
 
 	kdf, ok := reflect.New(typeKDF.Elem()).Interface().(KDF)
 	if !ok {
-		return nil, fmt.Errorf("Not a valid KDF: %s", method)
+		return nil, fmt.Errorf("Not a valid KDF: %s", algorithm)
 	}
 
 	kdf.SetDefaultParam()
@@ -312,12 +312,12 @@ func CreateKDF(method, param string) (KDF, error) {
 
 // EncodeFromKDF encode the key with the given KDF.
 func EncodeFromKDF(key string, kdf KDF, salt string, hashLength uint32) (string, error) {
-	method, err := KDFName(kdf)
+	algorithm, err := KDFName(kdf)
 	if err != nil {
 		return "", err
 	}
 
-	encoded, err := generateEncodedString([]byte(key), kdf, method, []byte(salt), hashLength)
+	encoded, err := generateEncodedString([]byte(key), kdf, algorithm, []byte(salt), hashLength)
 	if err != nil {
 		return "", err
 	}
@@ -327,7 +327,7 @@ func EncodeFromKDF(key string, kdf KDF, salt string, hashLength uint32) (string,
 
 // Encode generates encoded key.
 func Encode(key string, opt *Option) (string, error) {
-	kdf, err := CreateKDF(opt.Method, opt.Param)
+	kdf, err := CreateKDF(opt.Algorithm, opt.Param)
 	if err != nil {
 		return "", err
 	}
@@ -342,7 +342,7 @@ func Encode(key string, opt *Option) (string, error) {
 		salt = []byte(opt.Salt)
 	}
 
-	encoded, err := generateEncodedString([]byte(key), kdf, opt.Method, salt, opt.HashLength)
+	encoded, err := generateEncodedString([]byte(key), kdf, opt.Algorithm, salt, opt.HashLength)
 	if err != nil {
 		return "", err
 	}
@@ -352,9 +352,9 @@ func Encode(key string, opt *Option) (string, error) {
 
 // Verify key and encoded key.
 func Verify(key, encoded string) (bool, error) {
-	method, param, salt, hashed := parseEncodedString(encoded)
+	algorithm, param, salt, hashed := parseEncodedString(encoded)
 
-	kdf, err := CreateKDF(method, param)
+	kdf, err := CreateKDF(algorithm, param)
 	if err != nil {
 		return false, err
 	}
