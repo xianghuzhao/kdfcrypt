@@ -1,125 +1,146 @@
 package kdfcrypt
 
 import (
-	"fmt"
 	"testing"
 )
 
-var cryptedStringData = []struct {
-	str    string
-	method string
-	param  string
-	salt   string
-	value  string
+var methods = map[string]KDF{
+	"argon2i":  (*Argon2i)(nil),
+	"argon2id": (*Argon2id)(nil),
+	"pbkdf2":   (*PBKDF2)(nil),
+	"scrypt":   (*Scrypt)(nil),
+	"hkdf":     (*HKDF)(nil),
+}
+
+const keyEg = "This_is_1_Password_Example!"
+
+var keyEgs = []string{
+	keyEg,
+	"",
+	"                                ",
+	"00000000000000000000000000000000",
+	`,./;'[]\-='`,
+	"!@#$%^&*()`~",
+	`<>?:"{}|_+`,
+}
+
+var encodedStringData = []struct {
+	encoded string
+	method  string
+	param   string
+	salt    string
+	value   string
 }{
 	{
-		str: "",
+		encoded: "",
 	},
 	{
-		str: "$",
+		encoded: "$",
 	},
 	{
-		str: "$$",
+		encoded: "$$",
 	},
 	{
-		str:   "aaabbbcccdddeee",
-		value: "aaabbbcccdddeee",
+		encoded: "aaabbbcccdddeee",
+		value:   "aaabbbcccdddeee",
 	},
 	{
-		str:   "$$aaabbbcccdddeee$",
-		value: "aaabbbcccdddeee",
+		encoded: "$$aaabbbcccdddeee$",
+		value:   "aaabbbcccdddeee",
 	},
 	{
-		str:    "$argon2id$v=19,i=1$qwert12345$jjjssslllaaauuuwww333",
-		method: "argon2id",
-		param:  "v=19,i=1",
-		salt:   "qwert12345",
-		value:  "jjjssslllaaauuuwww333",
+		encoded: "$argon2id$v=19,i=1$qwert12345$jjjssslllaaauuuwww333",
+		method:  "argon2id",
+		param:   "v=19,i=1",
+		salt:    "qwert12345",
+		value:   "jjjssslllaaauuuwww333",
 	},
 	{
-		str:    "$scrypt$wert12345$jjssslllaaauuuwww333",
-		method: "scrypt",
-		salt:   "wert12345",
-		value:  "jjssslllaaauuuwww333",
+		encoded: "$scrypt$wert12345$jjssslllaaauuuwww333",
+		method:  "scrypt",
+		salt:    "wert12345",
+		value:   "jjssslllaaauuuwww333",
 	},
 	{
-		str:    "$2a$14$HAhpTYrQ/1GIYvvcVFPm6e$qT4P7iPRHiEKm78rOvIPkNddd3Y6Dk2",
-		method: "2a",
-		param:  "14",
-		salt:   "HAhpTYrQ/1GIYvvcVFPm6e",
-		value:  "qT4P7iPRHiEKm78rOvIPkNddd3Y6Dk2",
+		encoded: "$2a$14$HAhpTYrQ/1GIYvvcVFPm6e$qT4P7iPRHiEKm78rOvIPkNddd3Y6Dk2",
+		method:  "2a",
+		param:   "14",
+		salt:    "HAhpTYrQ/1GIYvvcVFPm6e",
+		value:   "qT4P7iPRHiEKm78rOvIPkNddd3Y6Dk2",
 	},
 	{
-		str:    "$6$salt$IxDD3jeSOb5eB1CX5LBsqZFVkJdido3OUILO5Ifz5iwMuTS4XMS130MTSuDDl3aCI6WouIL9AjRbLCelDCy.g.",
-		method: "6",
-		salt:   "salt",
-		value:  "IxDD3jeSOb5eB1CX5LBsqZFVkJdido3OUILO5Ifz5iwMuTS4XMS130MTSuDDl3aCI6WouIL9AjRbLCelDCy.g.",
+		encoded: "$6$salt$IxDD3jeSOb5eB1CX5LBsqZFVkJdido3OUILO5Ifz5iwMuTS4XMS130MTSuDDl3aCI6WouIL9AjRbLCelDCy.g.",
+		method:  "6",
+		salt:    "salt",
+		value:   "IxDD3jeSOb5eB1CX5LBsqZFVkJdido3OUILO5Ifz5iwMuTS4XMS130MTSuDDl3aCI6WouIL9AjRbLCelDCy.g.",
 	},
+}
+
+func TestKDFName(t *testing.T) {
+	for method, kdf := range methods {
+		name, err := KDFName(kdf)
+		if err != nil {
+			t.Errorf(`KDF name error for "%s": %s`, method, err)
+			continue
+		}
+		if name != method {
+			t.Errorf(`KDF name not correct for method "%s": %s`, method, name)
+		}
+	}
 }
 
 func TestParseCryptedString(t *testing.T) {
-	for _, d := range cryptedStringData {
-		method, param, salt, value := parseCryptedString(d.str)
+	for _, d := range encodedStringData {
+		method, param, salt, value := parseEncodedString(d.encoded)
 		if method != d.method {
-			t.Errorf("Parse method unmatch: '%s' != '%s', (%s)", method, d.method, d.str)
+			t.Errorf("Parse method unmatch: '%s' != '%s', (%s)", method, d.method, d.encoded)
 		}
 		if param != d.param {
-			t.Errorf("Parse param unmatch: '%s' != '%s', (%s)", param, d.param, d.str)
+			t.Errorf("Parse param unmatch: '%s' != '%s', (%s)", param, d.param, d.encoded)
 		}
 		if string(salt) != d.salt {
-			t.Errorf("Parse salt unmatch: '%s' != '%s', (%s)", salt, d.salt, d.str)
+			t.Errorf("Parse salt unmatch: '%s' != '%s', (%s)", salt, d.salt, d.encoded)
 		}
 		if string(value) != d.value {
-			t.Errorf("Parse value unmatch: '%s' != '%s', (%s)", value, d.value, d.str)
+			t.Errorf("Parse value unmatch: '%s' != '%s', (%s)", value, d.value, d.encoded)
 		}
 	}
 }
 
-func TestGenerateAndVerify(t *testing.T) {
-	d := PBKDF2{
-		Iteration: 4096,
-		HashFunc:  "sha512/256",
-	}
-	d.KeyLength = 32
+func TestEncodeAndVerify(t *testing.T) {
+	for method := range methods {
+		opt := &Option{
+			Method:          method,
+			RandomSaltLenth: 16,
+		}
 
-	key := "password"
+		for _, key := range keyEgs {
+			encoded, err := Encode(key, opt)
+			if err != nil {
+				t.Fatalf("Encode error: %s", err)
+			}
 
-	crypted, err := Generate(key, &d)
-	if err != nil {
-		t.Fatalf("Generate error: %s", err)
-	}
-
-	fmt.Println(crypted)
-
-	match, err := Verify(key, crypted)
-	if err != nil {
-		t.Fatalf("Verify error: %s", err)
-	}
-	if !match {
-		t.Errorf("Verify does not match")
+			match, err := Verify(key, encoded)
+			if err != nil {
+				t.Fatalf("Verify error: %s", err)
+			}
+			if !match {
+				t.Error("Verify does not match")
+			}
+		}
 	}
 }
 
-func TestCreateKDF(t *testing.T) {
-	kdf, err := CreateKDF("argon2id", "v=19,t=1,m=32768,p=1")
-	if err != nil {
-		t.Fatalf("Create KDF error: %s", err)
-	}
-
-	key := "password"
-
-	crypted, err := Generate(key, kdf)
-	if err != nil {
-		t.Fatalf("Generate error: %s", err)
-	}
-
-	fmt.Println(crypted)
-
-	match, err := Verify(key, crypted)
-	if err != nil {
-		t.Fatalf("Verify error: %s", err)
-	}
-	if !match {
-		t.Errorf("Verify does not match")
+func TestRandomSalt(t *testing.T) {
+	for method := range methods {
+		opt := &Option{
+			Method:          method,
+			RandomSaltLenth: 16,
+		}
+		encoded1, _ := Encode(keyEg, opt)
+		encoded2, _ := Encode(keyEg, opt)
+		if encoded1 == encoded2 {
+			t.Errorf("Encoded key is the same with random salt for method: %s", method)
+		}
 	}
 }
