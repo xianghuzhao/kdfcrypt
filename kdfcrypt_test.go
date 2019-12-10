@@ -110,8 +110,8 @@ func TestParseCryptedString(t *testing.T) {
 func TestEncodeAndVerify(t *testing.T) {
 	for algorithm := range algorithms {
 		opt := &Option{
-			Algorithm:       algorithm,
-			RandomSaltLenth: 16,
+			Algorithm:        algorithm,
+			RandomSaltLength: 16,
 		}
 
 		for _, key := range keyEgs {
@@ -134,8 +134,8 @@ func TestEncodeAndVerify(t *testing.T) {
 func TestRandomSalt(t *testing.T) {
 	for algorithm := range algorithms {
 		opt := &Option{
-			Algorithm:       algorithm,
-			RandomSaltLenth: 16,
+			Algorithm:        algorithm,
+			RandomSaltLength: 16,
 		}
 		encoded1, _ := Encode(keyEg, opt)
 		encoded2, _ := Encode(keyEg, opt)

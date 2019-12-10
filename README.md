@@ -28,9 +28,9 @@ import (
 
 func main() {
 	encoded, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
-		Algorithm:       "argon2id",
-		Param:           "m=4096,t=1,p=1",
-		RandomSaltLenth: 16,
+		Algorithm:        "argon2id",
+		Param:            "m=4096,t=1,p=1",
+		RandomSaltLength: 16,
 	})
 
 	// $argon2id$v=19,m=4096,t=1,p=1$4ns1ibGJDR6IQufkbT8E/w$WQ2lAwbDhZmZQMCMg74L00OHUFzn/IvbwDaxU6bgIys

@@ -18,11 +18,11 @@ type KDF interface {
 
 // Option for generating hash from KDF.
 type Option struct {
-	Algorithm       string
-	Param           string
-	RandomSaltLenth uint32
-	Salt            string
-	HashLength      uint32
+	Algorithm        string
+	Param            string
+	RandomSaltLength uint32
+	Salt             string
+	HashLength       uint32
 }
 
 var mapKDF = make(map[string]reflect.Type)
@@ -333,8 +333,8 @@ func Encode(key string, opt *Option) (string, error) {
 	}
 
 	var salt []byte
-	if opt.Salt == "" && opt.RandomSaltLenth != 0 {
-		salt, err = GenerateRandomSalt(opt.RandomSaltLenth)
+	if opt.Salt == "" && opt.RandomSaltLength != 0 {
+		salt, err = GenerateRandomSalt(opt.RandomSaltLength)
 		if err != nil {
 			return "", fmt.Errorf("Generate random salt error: %s", err)
 		}
