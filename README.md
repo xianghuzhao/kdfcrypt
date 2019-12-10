@@ -37,7 +37,7 @@ func main() {
 		HashLength:       32,
 	})
 
-	// $argon2id$v=19,m=4096,t=1,p=1$4ns1ibGJDR6IQufkbT8E/w$WQ2lAwbDhZmZQMCMg74L00OHUFzn/IvbwDaxU6bgIys
+	// $argon2id$v=19,m=4096,t=1,p=1$mD+rvcR+6nuAV6MJFOmDjw$IqfwTPk9RMGeOv4pCE1QiURuSoi655GUVjcQAk81eXM
 	fmt.Println(encoded)
 
 	match, _ := kdfcrypt.Verify("password", encoded)
