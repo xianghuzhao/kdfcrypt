@@ -56,7 +56,7 @@ salt, err := kdfcrypt.GenerateRandomSalt(16)
 aes256Key, err := kdf.Derive("password", salt, 32)
 ```
 
-The KDF algorithm, param and salt must be the same in order to get
+The KDF algorithm, param and salt must be preserved in order to get
 the same key again.
 
 
