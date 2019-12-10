@@ -278,7 +278,7 @@ func KDFName(kdf KDF) (string, error) {
 	return "", fmt.Errorf("KDF not registered")
 }
 
-// GenerateRandomSalt generates random salt
+// GenerateRandomSalt generates random salt.
 func GenerateRandomSalt(saltLength uint32) ([]byte, error) {
 	b := make([]byte, saltLength)
 	_, err := rand.Read(b)
