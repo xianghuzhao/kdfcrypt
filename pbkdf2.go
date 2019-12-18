@@ -12,7 +12,7 @@ type PBKDF2 struct {
 	HashFunc  string `param:"hash"`
 }
 
-// SetDefaultParam sets the default param for PBKDF2
+// SetDefaultParam sets the default param for PBKDF2.
 func (kdf *PBKDF2) SetDefaultParam() {
 	if kdf.Iteration == 0 {
 		kdf.Iteration = 1024

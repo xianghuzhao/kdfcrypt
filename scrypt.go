@@ -11,7 +11,7 @@ type Scrypt struct {
 	Parallelization int `param:"p"`
 }
 
-// SetDefaultParam sets the default param for scrypt
+// SetDefaultParam sets the default param for scrypt.
 func (kdf *Scrypt) SetDefaultParam() {
 	if kdf.Cost == 0 {
 		kdf.Cost = 32768

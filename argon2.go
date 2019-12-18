@@ -26,7 +26,7 @@ func (kdf *Argon2) validateVersion() error {
 	return nil
 }
 
-// SetDefaultParam sets the default param for argon2
+// SetDefaultParam sets the default param for argon2.
 func (kdf *Argon2) SetDefaultParam() {
 	if kdf.Version == 0 {
 		kdf.Version = argon2.Version

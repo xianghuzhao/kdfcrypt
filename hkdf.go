@@ -12,7 +12,7 @@ type HKDF struct {
 	Info     string `param:"info"`
 }
 
-// SetDefaultParam sets the default param for hkdf
+// SetDefaultParam sets the default param for hkdf.
 func (kdf *HKDF) SetDefaultParam() {
 	if kdf.HashFunc == "" {
 		kdf.HashFunc = "sha512"
