@@ -1,5 +1,7 @@
 module github.com/xianghuzhao/kdfcrypt
 
-go 1.12
+go 1.24.0
 
-require golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
+require golang.org/x/crypto v0.45.0
+
+require golang.org/x/sys v0.38.0 // indirect
