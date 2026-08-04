@@ -1,199 +1,152 @@
-# Key derivation function for password hashing
+# kdfcrypt
 
-[![GoDoc](https://godoc.org/github.com/xianghuzhao/kdfcrypt?status.svg)](https://godoc.org/github.com/xianghuzhao/kdfcrypt)
+[![Go Reference](https://pkg.go.dev/badge/github.com/xianghuzhao/kdfcrypt.svg)](https://pkg.go.dev/github.com/xianghuzhao/kdfcrypt)
+[![Test](https://github.com/xianghuzhao/kdfcrypt/actions/workflows/test.yml/badge.svg)](https://github.com/xianghuzhao/kdfcrypt/actions/workflows/test.yml)
 
-`kdfcrypt` is a library for using KDF (key derivation function) to
-generate password hashing.
+`kdfcrypt` is a Go library for deriving keys and encoding password hashes. It
+stores the algorithm, parameters, salt, and derived hash in one string, so
+multiple KDFs and parameter generations can coexist in the same application.
 
-With this library, it is easy to make multiple password hashing
-algorithms coexist in the same program.
+Supported algorithms are Argon2i, Argon2id, scrypt, PBKDF2, and HKDF. Use
+Argon2id for new password hashes. HKDF is intended for deriving keys from
+high-entropy key material, not for password storage.
 
-The currently supported KDFs are
-[argon2](https://en.wikipedia.org/wiki/Argon2),
-[scrypt](https://en.bitcoinwiki.org/wiki/Scrypt),
-[pbkdf2](https://en.wikipedia.org/wiki/PBKDF2) and
-[hkdf](https://en.wikipedia.org/wiki/HKDF).
-`argon2id` is the recommended choice for password hashing.
+The module requires Go 1.25 or later.
 
-These algorithms are implemented in
-[`golang.org/x/crypto`](https://godoc.org/golang.org/x/crypto).
+## Password hashing
 
-
-## Example
-
-### Password verification
+The algorithm must be selected explicitly. If neither `Salt` nor
+`RandomSaltLength` is set, `Encode` generates a 16-byte random salt.
 
 ```go
 package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/xianghuzhao/kdfcrypt"
 )
 
 func main() {
-	encoded, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
-		Algorithm:        "argon2id",
-		Param:            "m=65536,t=1,p=4",
-		RandomSaltLength: 16,
-		HashLength:       32,
+	encoded, err := kdfcrypt.Encode("password", &kdfcrypt.Option{
+		Algorithm: "argon2id",
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// $argon2id$v=19,m=65536,t=1,p=4$mD+rvcR+6nuAV6MJFOmDjw$IqfwTPk9RMGeOv4pCE1QiURuSoi655GUVjcQAk81eXM
-	fmt.Println(encoded)
-
-	match, _ := kdfcrypt.Verify("password", encoded)
+	match, err := kdfcrypt.Verify("password", encoded)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println(match) // true
 }
 ```
 
+`Verify` accepts hashes generated with older parameters because every encoded
+string contains its own parameters. Changing defaults only affects new calls
+that omit `Option.Param`; it does not strengthen existing stored hashes.
 
-### Generate key for AES-256
+## Defaults
 
-For the case of getting a derived key for AES-256 (which needs a 32-byte key):
+Defaults apply only to fields omitted by the caller.
+
+| Algorithm | Default parameters |
+| --- | --- |
+| Argon2id | `v=19,m=19456,t=2,p=1` |
+| Argon2i | `v=19,m=65536,t=1,p=1` |
+| scrypt | `N=131072,r=8,p=1` |
+| PBKDF2 | `iter=600000,hash=sha256` |
+| HKDF | `hash=sha512`, empty `info` |
+
+The default derived hash length is 32 bytes. Password-hashing costs should be
+benchmarked on the deployment hardware and explicitly adjusted when needed.
+The defaults follow the baseline recommendations in the
+[OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+
+## Options
 
 ```go
-kdf, err := kdfcrypt.CreateKDF("argon2id", "m=4096,t=1,p=1")
+type Option struct {
+	Algorithm        string // Required.
+	Param            string // Comma-separated algorithm parameters.
+	RandomSaltLength uint32 // Used when Salt is empty; zero defaults to 16.
+	Salt             string // Explicit fixed salt; avoid for password storage.
+	HashLength       uint32 // Zero defaults to 32.
+}
+```
+
+An explicit non-empty `Salt` takes precedence over `RandomSaltLength`. The
+high-level `Encode` API never generates a new empty salt. Code that explicitly
+needs an empty salt can use `EncodeFromKDF`:
+
+```go
+kdf, err := kdfcrypt.CreateKDF("pbkdf2", "iter=600000,hash=sha256")
+if err != nil {
+	return err
+}
+encoded, err := kdfcrypt.EncodeFromKDF("password", kdf, "", 32)
+```
+
+Fixed or empty salts should not be used for password storage.
+
+## Encoded format
+
+Encoded passwords use Raw standard Base64 and exactly four `$`-separated
+fields:
+
+```text
+$argon2id$v=19,m=19456,t=2,p=1$c2FsdA$aGFzaA
+$ algorithm $ parameters              $ salt $ hash
+```
+
+Parsing is strict. Duplicate, unknown, missing, overflowing, or malformed
+parameters are rejected. `Verify` is designed for encoded values loaded from
+trusted application storage. It does not impose resource limits on valid KDF
+cost parameters, so applications must not let an attacker supply an arbitrary
+encoded string directly.
+
+Malformed encodings, invalid parameters, and unavailable algorithms can be
+classified with `errors.Is` and `ErrInvalidEncoding`, `ErrInvalidParameter`, or
+`ErrUnsupportedAlgorithm`. A valid encoding with the wrong password returns
+`false, nil`.
+
+## Deriving encryption keys
+
+For a 32-byte AES-256 key, preserve the KDF algorithm, parameters, and salt so
+the same key can be derived again:
+
+```go
+kdf, err := kdfcrypt.CreateKDF("argon2id", "m=19456,t=2,p=1")
+if err != nil {
+	return err
+}
 salt, err := kdfcrypt.GenerateRandomSalt(16)
-aes256Key, err := kdf.Derive("password", salt, 32)
+if err != nil {
+	return err
+}
+key, err := kdf.Derive([]byte("password"), salt, 32)
 ```
 
-The KDF algorithm, param and salt must be preserved in order to get
-the same key again.
-
-
-## Format of the encoded password
-
-Password will be encoded into a single string which could be safely
-saved.
-
-There are four parts of the encoded string which are splitted by "`$`".
-
-1. The name of KDF.
-2. Param string of the KDF, which depends on KDF.
-3. Salt encoded with base64.
-4. Hash key encoded with base64.
-
-```
-$argon2id$v=19,m=4096,t=1,p=1$4ns1ibGJDR6IQufkbT8E/w$WQ2lAwbDhZmZQMCMg74L00OHUFzn/IvbwDaxU6bgIys
-$ KDF    $ param             $ salt (base64)        $ hash (base64)
-```
-
-
-## Option
-
-The `Option` struct is passed as argument for `Encode`.
-
-1. Algorithm: Could be one of `argon2id`, `argon2i`, `scrypt`, `pbkdf`,
-   `hkdf`.
-2. Param: String for the KDF param. Different items are separated by
-   comma "`,`". The detailed items vary among different KDFs.
-3. RandomSaltLength: The length for the random salt in byte. If `Salt`
-   is not empty, `RandomSaltLength` will be ignored.
-4. Salt: Salt for the hash.
-5. HashLength: The length of the hash result in byte.
-
-You are able to set the salt explicitly:
+HKDF can be used when the input is already high-entropy key material:
 
 ```go
-encoded, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
-	Algorithm:        "argon2id",
-	Param:            "m=4096,t=1,p=1",
-	Salt:             "This_is_fixed_salt",
-	HashLength:       32,
-})
+kdf, err := kdfcrypt.CreateKDF("hkdf", "hash=sha512,info=example-context")
+if err != nil {
+	return err
+}
+key, err := kdf.Derive(masterSecret, salt, 32)
 ```
 
-If you would like to use random salt, do not set the `Salt` and set the
-`RandomSaltLength`:
+## Algorithm parameters
 
-```go
-encoded, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
-	Algorithm:        "argon2id",
-	Param:            "m=4096,t=1,p=1",
-	RandomSaltLength: 16,
-	HashLength:       32,
-})
-```
+- Argon2i and Argon2id: `m` is memory in KiB, `t` is the number of passes,
+  `p` is parallelism, and `v` is the Argon2 version.
+- scrypt: `N` is the CPU/memory cost and must be a power of two greater than
+  one, `r` is the block size, and `p` is parallelism.
+- PBKDF2: `iter` is the iteration count and `hash` is the HMAC hash function.
+- HKDF: `hash` is the HMAC hash function and `info` is optional context.
 
-## Supported KDF
-
-### Argon2
-
-Two variants `argon2i` and `argon2id` are provided.
-
-```go
-encodedArgon2i, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
-	Algorithm:        "argon2i",
-	Param:            "m=4096,t=1,p=1",
-})
-// $argon2i$v=19,m=4096,t=1,p=1$HGi1YMTQxF+LYrcsnAz2YQ$vB3J0eDGCeq2l8Ky96OqB1P9rr8KPOQZzEScZnq1IUA
-
-encodedArgon2id, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
-	Algorithm:        "argon2id",
-	Param:            "m=4096,t=1,p=1",
-})
-// $argon2id$v=19,m=4096,t=1,p=1$23wOTcL162eix5YdOdOvqg$Il5kKW+CX+s6a8d6LtEnQ5k0bvBnfkuZXKkXq+Krx1I
-```
-
-The param consists of three parts:
-
-1. m: memory, memory usage.
-2. t: iterations, CPU cost.
-3. p: parallelism, number of threads.
-
-
-### Scrypt
-
-```go
-encoded, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
-	Algorithm:        "scrypt",
-	Param:            "N=32768,r=8,p=1",
-})
-// $scrypt$N=32768,r=8,p=1$v3T+aMCko9ZsovBnyWIdxQ$GTDo1AEPht8SL8Q+3y0FvWpPvzn5ZZNpwoqG+WOLsyI
-```
-
-1. N: CPU/memory cost parameter, which must be a power of two greater
-   than 1.
-2. r: The blocksize parameter, which fine-tunes sequential memory read
-   size and performance. 8 is commonly used.
-3. p: Parallelization parameter.
-
-
-### PBKDF2
-
-```go
-encoded, _ := kdfcrypt.Encode("password", &kdfcrypt.Option{
-	Algorithm:        "pbkdf2",
-	Param:            "iter=1024,hash=sha512",
-})
-// $pbkdf2$iter=1024,hash=sha512$fvGxGq7tHzPgTJ3lGvl6XQ$O19iePvAQtlZ7nC5f5cS4C76bur9qMLp6dlPdXFiFTc
-```
-
-The `iter` is the iteration count for PBKDF.
-
-The `hash` type could be one of the followings:
-
-* md5
-* sha1
-* sha224
-* sha256
-* sha512
-* sha384
-* sha512/224
-* sha512/256
-
-
-### HKDF
-
-HKDF should not be used for password storage.
-
-```go
-kdf, err := kdfcrypt.CreateKDF("hkdf", "hash=sha512,info=hkdf-test")
-salt, err := kdfcrypt.GenerateRandomSalt(16)
-key, err := kdf.Derive("password", salt, 32)
-```
-
-The `hash` type is the same as PBKDF.
-The `info` is optional.
+Supported PBKDF2 and HKDF hash names are `md5`, `sha1`, `sha224`, `sha256`,
+`sha384`, `sha512`, `sha512/224`, and `sha512/256`.

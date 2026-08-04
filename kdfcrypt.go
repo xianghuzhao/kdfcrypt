@@ -4,19 +4,31 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
-// KDF should be implemented for different kdfs.
+var (
+	// ErrInvalidEncoding indicates that an encoded password is malformed.
+	ErrInvalidEncoding = errors.New("invalid password encoding")
+	// ErrInvalidParameter indicates that an option or KDF parameter is invalid.
+	ErrInvalidParameter = errors.New("invalid KDF parameter")
+	// ErrUnsupportedAlgorithm indicates that a KDF algorithm is not registered.
+	ErrUnsupportedAlgorithm = errors.New("unsupported KDF algorithm")
+)
+
+// KDF is implemented by key derivation functions registered with this package.
 type KDF interface {
 	SetDefaultParam()
 	Derive(password, salt []byte, hashLength uint32) ([]byte, error)
 }
 
-// Option for generating hash from KDF.
+// Option configures Encode.
 type Option struct {
 	Algorithm        string
 	Param            string
@@ -25,7 +37,10 @@ type Option struct {
 	HashLength       uint32
 }
 
-var mapKDF = make(map[string]reflect.Type)
+var (
+	mapKDF   = make(map[string]reflect.Type)
+	mapKDFMu sync.RWMutex
+)
 
 func init() {
 	RegisterKDF("argon2i", (*Argon2i)(nil))
@@ -36,13 +51,21 @@ func init() {
 }
 
 func compareBytes(b1, b2 []byte) bool {
-	if subtle.ConstantTimeEq(int32(len(b1)), int32(len(b2))) == 0 {
+	if len(b1) != len(b2) {
 		return false
 	}
-	if subtle.ConstantTimeCompare(b1, b2) == 1 {
-		return true
+	return subtle.ConstantTimeCompare(b1, b2) == 1
+}
+
+func kdfStructValue(kdf KDF) (reflect.Value, error) {
+	if kdf == nil {
+		return reflect.Value{}, fmt.Errorf("%w: KDF must not be nil", ErrInvalidParameter)
 	}
-	return false
+	value := reflect.ValueOf(kdf)
+	if value.Kind() != reflect.Pointer || value.IsNil() || value.Elem().Kind() != reflect.Struct {
+		return reflect.Value{}, fmt.Errorf("%w: KDF must be a non-nil pointer to a struct", ErrInvalidParameter)
+	}
+	return value.Elem(), nil
 }
 
 func traverseStructParam(stValue reflect.Value, handler func(string, string, reflect.Value) error) error {
@@ -84,7 +107,7 @@ func traverseStructParam(stValue reflect.Value, handler func(string, string, ref
 
 func setParamValue(paramName, fieldName string, value reflect.Value, paramMap map[string]string) error {
 	if !value.CanSet() {
-		return fmt.Errorf("Can not set unexported struct field: %s", fieldName)
+		return fmt.Errorf("%w: cannot set unexported struct field %s", ErrInvalidParameter, fieldName)
 	}
 
 	strValue, ok := paramMap[paramName]
@@ -94,6 +117,8 @@ func setParamValue(paramName, fieldName string, value reflect.Value, paramMap ma
 
 	var bitSize int
 	switch value.Kind() {
+	case reflect.Int, reflect.Uint:
+		bitSize = strconv.IntSize
 	case reflect.Int8, reflect.Uint8:
 		bitSize = 8
 	case reflect.Int16, reflect.Uint16:
@@ -106,27 +131,30 @@ func setParamValue(paramName, fieldName string, value reflect.Value, paramMap ma
 
 	switch value.Kind() {
 	case reflect.String:
+		if strings.ContainsAny(strValue, ",$") {
+			return fmt.Errorf("%w: %s contains a reserved character", ErrInvalidParameter, paramName)
+		}
 		value.SetString(strValue)
 	case reflect.Bool:
 		v, err := strconv.ParseBool(strValue)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %s: %v", ErrInvalidParameter, paramName, err)
 		}
 		value.SetBool(v)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		v, err := strconv.ParseInt(strValue, 10, bitSize)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %s: %v", ErrInvalidParameter, paramName, err)
 		}
 		value.SetInt(v)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		v, err := strconv.ParseUint(strValue, 10, bitSize)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %s: %v", ErrInvalidParameter, paramName, err)
 		}
 		value.SetUint(v)
 	default:
-		return fmt.Errorf(`Can not set param value for "%s", type: %v`, paramName, value.Kind())
+		return fmt.Errorf("%w: cannot set %q with type %v", ErrInvalidParameter, paramName, value.Kind())
 	}
 
 	return nil
@@ -145,31 +173,61 @@ func getParamValue(paramName string, value reflect.Value) (string, error) {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		paramValue = strconv.FormatUint(value.Uint(), 10)
 	default:
-		return "", fmt.Errorf(`Can not get param value for "%s", type: %v`, paramName, value.Kind())
+		return "", fmt.Errorf("%w: cannot get %q with type %v", ErrInvalidParameter, paramName, value.Kind())
 	}
 
 	return fmt.Sprintf("%s=%s", paramName, paramValue), nil
 }
 
-func parseParam(kdf KDF, param string) error {
+func parseParam(kdf KDF, param string, requireAll bool) error {
 	paramMap := make(map[string]string)
+	knownParams := make(map[string]struct{})
 
-	chunks := strings.Split(param, ",")
-	for _, chunk := range chunks {
-		if len(chunk) == 0 {
-			continue
+	kdfValue, err := kdfStructValue(kdf)
+	if err != nil {
+		return err
+	}
+	if err := traverseStructParam(kdfValue, func(paramName, _ string, _ reflect.Value) error {
+		if _, exists := knownParams[paramName]; exists {
+			return fmt.Errorf("%w: duplicate param tag %q", ErrInvalidParameter, paramName)
 		}
-		eqIndex := strings.Index(chunk, "=")
-		if eqIndex <= 0 {
-			return fmt.Errorf(`Invalid param chunk: "%s"`, chunk)
-		}
-		key := chunk[:eqIndex]
-		value := chunk[eqIndex+1:]
-		paramMap[key] = value
+		knownParams[paramName] = struct{}{}
+		return nil
+	}); err != nil {
+		return err
 	}
 
-	kdfValue := reflect.ValueOf(kdf).Elem()
-	err := traverseStructParam(kdfValue, func(paramName, fieldName string, value reflect.Value) error {
+	if param != "" {
+		chunks := strings.Split(param, ",")
+		for _, chunk := range chunks {
+			if chunk == "" {
+				return fmt.Errorf("%w: empty parameter", ErrInvalidParameter)
+			}
+			eqIndex := strings.Index(chunk, "=")
+			if eqIndex <= 0 {
+				return fmt.Errorf("%w: invalid parameter %q", ErrInvalidParameter, chunk)
+			}
+			key := chunk[:eqIndex]
+			value := chunk[eqIndex+1:]
+			if _, ok := knownParams[key]; !ok {
+				return fmt.Errorf("%w: unknown parameter %q", ErrInvalidParameter, key)
+			}
+			if _, exists := paramMap[key]; exists {
+				return fmt.Errorf("%w: duplicate parameter %q", ErrInvalidParameter, key)
+			}
+			paramMap[key] = value
+		}
+	}
+
+	if requireAll {
+		for paramName := range knownParams {
+			if _, ok := paramMap[paramName]; !ok {
+				return fmt.Errorf("%w: missing parameter %q", ErrInvalidParameter, paramName)
+			}
+		}
+	}
+
+	err = traverseStructParam(kdfValue, func(paramName, fieldName string, value reflect.Value) error {
 		return setParamValue(paramName, fieldName, value, paramMap)
 	})
 	if err != nil {
@@ -182,8 +240,14 @@ func parseParam(kdf KDF, param string) error {
 func generateParam(kdf KDF) (string, error) {
 	paramSlice := make([]string, 0)
 
-	kdfValue := reflect.ValueOf(kdf).Elem()
-	err := traverseStructParam(kdfValue, func(paramName, fieldName string, value reflect.Value) error {
+	kdfValue, err := kdfStructValue(kdf)
+	if err != nil {
+		return "", err
+	}
+	err = traverseStructParam(kdfValue, func(paramName, fieldName string, value reflect.Value) error {
+		if value.Kind() == reflect.String && strings.ContainsAny(value.String(), ",$") {
+			return fmt.Errorf("%w: parameter %q contains a reserved character", ErrInvalidParameter, paramName)
+		}
 		chunk, err := getParamValue(paramName, value)
 		if err != nil {
 			return err
@@ -199,39 +263,30 @@ func generateParam(kdf KDF) (string, error) {
 	return strings.Join(paramSlice, ","), nil
 }
 
-func parseEncodedString(encoded string) (string, string, string, string) {
-	var algorithm, param, salt, value string
+type encodedPassword struct {
+	algorithm string
+	param     string
+	salt      string
+	hash      string
+}
 
-	encoded = strings.Trim(encoded, "$")
-
+func parseEncodedString(encoded string) (encodedPassword, error) {
 	frags := strings.Split(encoded, "$")
-	if len(frags) == 0 {
-		return algorithm, param, salt, value
+	if len(frags) != 5 || frags[0] != "" || frags[1] == "" || frags[4] == "" {
+		return encodedPassword{}, fmt.Errorf("%w: expected $algorithm$params$salt$hash", ErrInvalidEncoding)
 	}
-	value = frags[len(frags)-1]
-
-	frags = frags[:len(frags)-1]
-	if len(frags) == 0 {
-		return algorithm, param, salt, value
-	}
-	algorithm = frags[0]
-
-	frags = frags[1:]
-	if len(frags) == 0 {
-		return algorithm, param, salt, value
-	}
-	salt = frags[len(frags)-1]
-
-	frags = frags[:len(frags)-1]
-	if len(frags) == 0 {
-		return algorithm, param, salt, value
-	}
-	param = frags[0]
-
-	return algorithm, param, salt, value
+	return encodedPassword{
+		algorithm: frags[1],
+		param:     frags[2],
+		salt:      frags[3],
+		hash:      frags[4],
+	}, nil
 }
 
 func generateEncodedString(password []byte, kdf KDF, algorithm string, salt []byte, hashLength uint32) (string, error) {
+	if algorithm == "" || strings.Contains(algorithm, "$") {
+		return "", fmt.Errorf("%w: invalid algorithm name %q", ErrInvalidParameter, algorithm)
+	}
 	if hashLength == 0 {
 		hashLength = 32
 	}
@@ -254,32 +309,52 @@ func generateEncodedString(password []byte, kdf KDF, algorithm string, salt []by
 	return encoded, nil
 }
 
-// RegisterKDF register a KDF with algorithm name.
+// RegisterKDF registers a KDF type with an algorithm name.
 func RegisterKDF(algorithm string, kdf KDF) {
+	mapKDFMu.Lock()
+	defer mapKDFMu.Unlock()
 	mapKDF[algorithm] = reflect.TypeOf(kdf)
 }
 
-// ListKDFAlgorithms list all the available kdf algorithms.
+// ListKDFAlgorithms lists all registered KDF algorithms in sorted order.
 func ListKDFAlgorithms() []string {
+	mapKDFMu.RLock()
+	defer mapKDFMu.RUnlock()
 	keys := make([]string, 0, len(mapKDF))
 	for algorithm := range mapKDF {
 		keys = append(keys, algorithm)
 	}
+	sort.Strings(keys)
 	return keys
 }
 
 // KDFName returns the algorithm name of the KDF.
 func KDFName(kdf KDF) (string, error) {
-	for algorithm, typeKDF := range mapKDF {
-		if typeKDF == reflect.TypeOf(kdf) {
+	kdfType := reflect.TypeOf(kdf)
+	if kdfType == nil || kdfType.Kind() != reflect.Pointer || kdfType.Elem().Kind() != reflect.Struct {
+		return "", fmt.Errorf("%w: invalid KDF type %T", ErrInvalidParameter, kdf)
+	}
+	mapKDFMu.RLock()
+	defer mapKDFMu.RUnlock()
+	algorithms := make([]string, 0, len(mapKDF))
+	for algorithm := range mapKDF {
+		algorithms = append(algorithms, algorithm)
+	}
+	sort.Strings(algorithms)
+	for _, algorithm := range algorithms {
+		typeKDF := mapKDF[algorithm]
+		if typeKDF == kdfType {
 			return algorithm, nil
 		}
 	}
-	return "", fmt.Errorf("KDF not registered")
+	return "", fmt.Errorf("%w: KDF type %T is not registered", ErrUnsupportedAlgorithm, kdf)
 }
 
 // GenerateRandomSalt generates random salt.
 func GenerateRandomSalt(saltLength uint32) ([]byte, error) {
+	if uint64(saltLength) > uint64(^uint(0)>>1) {
+		return nil, fmt.Errorf("%w: salt length is too large", ErrInvalidParameter)
+	}
 	b := make([]byte, saltLength)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -288,30 +363,53 @@ func GenerateRandomSalt(saltLength uint32) ([]byte, error) {
 	return b, nil
 }
 
-// CreateKDF creates key derivation function.
-func CreateKDF(algorithm, param string) (KDF, error) {
+type paramValidator interface {
+	validate() error
+}
+
+func createKDF(algorithm, param string, requireAll bool) (KDF, error) {
+	if algorithm == "" || strings.Contains(algorithm, "$") {
+		return nil, fmt.Errorf("%w: invalid algorithm name %q", ErrInvalidParameter, algorithm)
+	}
+	mapKDFMu.RLock()
 	typeKDF, ok := mapKDF[algorithm]
+	mapKDFMu.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("Algorithm not available: '%s'", algorithm)
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedAlgorithm, algorithm)
+	}
+	if typeKDF == nil || typeKDF.Kind() != reflect.Pointer || typeKDF.Elem().Kind() != reflect.Struct {
+		return nil, fmt.Errorf("%w: registered type for %q is invalid", ErrInvalidParameter, algorithm)
 	}
 
 	kdf, ok := reflect.New(typeKDF.Elem()).Interface().(KDF)
 	if !ok {
-		return nil, fmt.Errorf("Not a valid KDF: %s", algorithm)
+		return nil, fmt.Errorf("%w: registered type for %q does not implement KDF", ErrInvalidParameter, algorithm)
 	}
 
 	kdf.SetDefaultParam()
 
-	err := parseParam(kdf, param)
-	if err != nil {
+	if err := parseParam(kdf, param, requireAll); err != nil {
 		return nil, err
+	}
+	if validator, ok := kdf.(paramValidator); ok {
+		if err := validator.validate(); err != nil {
+			return nil, err
+		}
 	}
 
 	return kdf, nil
 }
 
-// EncodeFromKDF encode the password with the given KDF.
+// CreateKDF creates a key derivation function.
+func CreateKDF(algorithm, param string) (KDF, error) {
+	return createKDF(algorithm, param, false)
+}
+
+// EncodeFromKDF encodes a password with the given KDF and salt.
 func EncodeFromKDF(password string, kdf KDF, salt string, hashLength uint32) (string, error) {
+	if _, err := kdfStructValue(kdf); err != nil {
+		return "", err
+	}
 	algorithm, err := KDFName(kdf)
 	if err != nil {
 		return "", err
@@ -325,18 +423,25 @@ func EncodeFromKDF(password string, kdf KDF, salt string, hashLength uint32) (st
 	return encoded, nil
 }
 
-// Encode generates encoded password.
+// Encode generates an encoded password hash.
 func Encode(password string, opt *Option) (string, error) {
+	if opt == nil {
+		return "", fmt.Errorf("%w: option must not be nil", ErrInvalidParameter)
+	}
 	kdf, err := CreateKDF(opt.Algorithm, opt.Param)
 	if err != nil {
 		return "", err
 	}
 
 	var salt []byte
-	if opt.Salt == "" && opt.RandomSaltLength != 0 {
-		salt, err = GenerateRandomSalt(opt.RandomSaltLength)
+	if opt.Salt == "" {
+		saltLength := opt.RandomSaltLength
+		if saltLength == 0 {
+			saltLength = 16
+		}
+		salt, err = GenerateRandomSalt(saltLength)
 		if err != nil {
-			return "", fmt.Errorf("Generate random salt error: %s", err)
+			return "", fmt.Errorf("generate random salt: %w", err)
 		}
 	} else {
 		salt = []byte(opt.Salt)
@@ -350,23 +455,29 @@ func Encode(password string, opt *Option) (string, error) {
 	return encoded, nil
 }
 
-// Verify password and encoded password.
+// Verify reports whether password matches an encoded password hash.
 func Verify(password, encoded string) (bool, error) {
-	algorithm, param, salt, hashed := parseEncodedString(encoded)
-
-	kdf, err := CreateKDF(algorithm, param)
+	parsed, err := parseEncodedString(encoded)
 	if err != nil {
 		return false, err
 	}
 
-	saltOrigin, err := base64.RawStdEncoding.DecodeString(salt)
+	kdf, err := createKDF(parsed.algorithm, parsed.param, true)
 	if err != nil {
 		return false, err
 	}
 
-	hashedOrigin, err := base64.RawStdEncoding.DecodeString(hashed)
+	saltOrigin, err := base64.RawStdEncoding.DecodeString(parsed.salt)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("%w: invalid salt: %v", ErrInvalidEncoding, err)
+	}
+
+	hashedOrigin, err := base64.RawStdEncoding.DecodeString(parsed.hash)
+	if err != nil {
+		return false, fmt.Errorf("%w: invalid hash: %v", ErrInvalidEncoding, err)
+	}
+	if len(hashedOrigin) == 0 || uint64(len(hashedOrigin)) > uint64(^uint32(0)) {
+		return false, fmt.Errorf("%w: invalid hash length", ErrInvalidEncoding)
 	}
 
 	newHashed, err := kdf.Derive([]byte(password), saltOrigin, uint32(len(hashedOrigin)))
